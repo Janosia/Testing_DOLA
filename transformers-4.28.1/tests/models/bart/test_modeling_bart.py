@@ -12,8 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Testing suite for the PyTorch BART model. """
-
+"""Testing suite for the PyTorch BART model."""
 
 import copy
 import tempfile
@@ -22,7 +21,14 @@ import unittest
 import timeout_decorator  # noqa
 
 from transformers import BartConfig, is_torch_available
-from transformers.testing_utils import require_sentencepiece, require_tokenizers, require_torch, slow, torch_device
+from transformers.testing_utils import (
+    require_sentencepiece,
+    require_tokenizers,
+    require_torch,
+    require_torch_fp16,
+    slow,
+    torch_device,
+)
 from transformers.utils import cached_property
 
 from ...generation.test_utils import GenerationTesterMixin
@@ -383,12 +389,12 @@ class BartHeadTests(unittest.TestCase):
             bart_toks = tokenizer.encode(ex, return_tensors="pt").squeeze()
             assert_tensors_close(desired_result.long(), bart_toks, prefix=ex)
 
+    @require_torch_fp16
     def test_generate_fp16(self):
         config, input_ids, batch_size = self._get_config_and_data()
         attention_mask = input_ids.ne(1).to(torch_device)
         model = BartForConditionalGeneration(config).eval().to(torch_device)
-        if torch_device == "cuda":
-            model.half()
+        model.half()
         model.generate(input_ids, attention_mask=attention_mask)
         model.generate(num_beams=4, do_sample=True, early_stopping=False, num_return_sequences=3)
 
@@ -497,15 +503,19 @@ class BartModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin
             with torch.no_grad():
                 model(**inputs)[0]
 
+    @require_torch_fp16
     def test_generate_fp16(self):
         config, input_dict = self.model_tester.prepare_config_and_inputs()
         input_ids = input_dict["input_ids"]
         attention_mask = input_ids.ne(1).to(torch_device)
         model = BartForConditionalGeneration(config).eval().to(torch_device)
-        if torch_device == "cuda":
-            model.half()
+        model.half()
         model.generate(input_ids, attention_mask=attention_mask)
         model.generate(num_beams=4, do_sample=True, early_stopping=False, num_return_sequences=3)
+
+    @unittest.skip("Does not support conversations.")
+    def test_pipeline_conversational(self):
+        pass
 
 
 def assert_tensors_close(a, b, atol=1e-12, prefix=""):
@@ -1230,7 +1240,7 @@ class BartModelIntegrationTests(unittest.TestCase):
             article, add_special_tokens=False, truncation=True, max_length=512, return_tensors="pt"
         ).input_ids.to(torch_device)
 
-        outputs = bart_model.generate(input_ids, penalty_alpha=0.5, top_k=5, max_length=64)
+        outputs = bart_model.generate(input_ids, penalty_alpha=0.5, top_k=5, max_length=64, num_beams=1)
         generated_text = bart_tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
         self.assertListEqual(
@@ -1289,7 +1299,7 @@ class BartStandaloneDecoderModelTester:
         use_labels=True,
         decoder_start_token_id=2,
         decoder_ffn_dim=32,
-        decoder_layers=4,
+        decoder_layers=2,
         encoder_attention_heads=4,
         decoder_attention_heads=4,
         max_position_embeddings=30,

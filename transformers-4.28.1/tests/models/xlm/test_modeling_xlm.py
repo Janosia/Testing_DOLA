@@ -36,7 +36,7 @@ if is_torch_available():
         XLMModel,
         XLMWithLMHeadModel,
     )
-    from transformers.models.xlm.modeling_xlm import XLM_PRETRAINED_MODEL_ARCHIVE_LIST
+    from transformers.models.xlm.modeling_xlm import create_sinusoidal_embeddings
 
 
 class XLMModelTester:
@@ -57,7 +57,7 @@ class XLMModelTester:
         vocab_size=99,
         n_special=0,
         hidden_size=32,
-        num_hidden_layers=5,
+        num_hidden_layers=2,
         num_attention_heads=4,
         hidden_dropout_prob=0.1,
         attention_probs_dropout_prob=0.1,
@@ -395,11 +395,7 @@ class XLMModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin,
     def is_pipeline_test_to_skip(
         self, pipeline_test_casse_name, config_class, model_architecture, tokenizer_name, processor_name
     ):
-        if pipeline_test_casse_name == "FillMaskPipelineTests":
-            # Get `ValueError: AttributeError: 'NoneType' object has no attribute 'new_ones'` or `AssertionError`.
-            # `XLMConfig` was never used in pipeline tests: cannot create a simple tokenizer
-            return True
-        elif (
+        if (
             pipeline_test_casse_name == "QAPipelineTests"
             and tokenizer_name is not None
             and not tokenizer_name.endswith("Fast")
@@ -436,6 +432,14 @@ class XLMModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin,
     def test_xlm_model(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
         self.model_tester.create_and_check_xlm_model(*config_and_inputs)
+
+    # Copied from tests/models/distilbert/test_modeling_distilbert.py with Distilbert->XLM
+    def test_xlm_model_with_sinusoidal_encodings(self):
+        config = XLMConfig(sinusoidal_embeddings=True)
+        model = XLMModel(config=config)
+        sinusoidal_pos_embds = torch.empty((config.max_position_embeddings, config.emb_dim), dtype=torch.float32)
+        create_sinusoidal_embeddings(config.max_position_embeddings, config.emb_dim, sinusoidal_pos_embds)
+        self.model_tester.parent.assertTrue(torch.equal(model.position_embeddings.weight, sinusoidal_pos_embds))
 
     def test_xlm_lm_head(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
@@ -509,16 +513,16 @@ class XLMModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin,
 
     @slow
     def test_model_from_pretrained(self):
-        for model_name in XLM_PRETRAINED_MODEL_ARCHIVE_LIST[:1]:
-            model = XLMModel.from_pretrained(model_name)
-            self.assertIsNotNone(model)
+        model_name = "FacebookAI/xlm-mlm-en-2048"
+        model = XLMModel.from_pretrained(model_name)
+        self.assertIsNotNone(model)
 
 
 @require_torch
 class XLMModelLanguageGenerationTest(unittest.TestCase):
     @slow
     def test_lm_generate_xlm_mlm_en_2048(self):
-        model = XLMWithLMHeadModel.from_pretrained("xlm-mlm-en-2048")
+        model = XLMWithLMHeadModel.from_pretrained("FacebookAI/xlm-mlm-en-2048")
         model.to(torch_device)
         input_ids = torch.tensor([[14, 447]], dtype=torch.long, device=torch_device)  # the president
         expected_output_ids = [

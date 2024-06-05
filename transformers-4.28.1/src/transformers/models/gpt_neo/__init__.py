@@ -17,7 +17,7 @@ from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_flax_availa
 
 
 _import_structure = {
-    "configuration_gpt_neo": ["GPT_NEO_PRETRAINED_CONFIG_ARCHIVE_MAP", "GPTNeoConfig", "GPTNeoOnnxConfig"],
+    "configuration_gpt_neo": ["GPTNeoConfig", "GPTNeoOnnxConfig"],
 }
 
 try:
@@ -27,9 +27,10 @@ except OptionalDependencyNotAvailable:
     pass
 else:
     _import_structure["modeling_gpt_neo"] = [
-        "GPT_NEO_PRETRAINED_MODEL_ARCHIVE_LIST",
         "GPTNeoForCausalLM",
+        "GPTNeoForQuestionAnswering",
         "GPTNeoForSequenceClassification",
+        "GPTNeoForTokenClassification",
         "GPTNeoModel",
         "GPTNeoPreTrainedModel",
         "load_tf_weights_in_gpt_neo",
@@ -49,7 +50,7 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_gpt_neo import GPT_NEO_PRETRAINED_CONFIG_ARCHIVE_MAP, GPTNeoConfig, GPTNeoOnnxConfig
+    from .configuration_gpt_neo import GPTNeoConfig, GPTNeoOnnxConfig
 
     try:
         if not is_torch_available():
@@ -58,9 +59,10 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_gpt_neo import (
-            GPT_NEO_PRETRAINED_MODEL_ARCHIVE_LIST,
             GPTNeoForCausalLM,
+            GPTNeoForQuestionAnswering,
             GPTNeoForSequenceClassification,
+            GPTNeoForTokenClassification,
             GPTNeoModel,
             GPTNeoPreTrainedModel,
             load_tf_weights_in_gpt_neo,

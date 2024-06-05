@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" SpeechT5 model configuration"""
+"""SpeechT5 model configuration"""
 
 import functools
 import operator
@@ -22,16 +22,6 @@ from ...utils import logging
 
 
 logger = logging.get_logger(__name__)
-
-SPEECHT5_PRETRAINED_CONFIG_ARCHIVE_MAP = {
-    "microsoft/speecht5_asr": "https://huggingface.co/microsoft/speecht5_asr/resolve/main/config.json",
-    "microsoft/speecht5_tts": "https://huggingface.co/microsoft/speecht5_tts/resolve/main/config.json",
-    "microsoft/speecht5_vc": "https://huggingface.co/microsoft/speecht5_vc/resolve/main/config.json",
-}
-
-SPEECHT5_PRETRAINED_HIFIGAN_CONFIG_ARCHIVE_MAP = {
-    "microsoft/speecht5_hifigan": "https://huggingface.co/microsoft/speecht5_hifigan/resolve/main/config.json",
-}
 
 
 class SpeechT5Config(PretrainedConfig):
@@ -161,13 +151,22 @@ class SpeechT5Config(PretrainedConfig):
         speech_decoder_postnet_dropout (`float`, *optional*, defaults to 0.5):
             The dropout probability for the speech decoder post-net layers.
         reduction_factor (`int`, *optional*, defaults to 2):
-            Spectrogram length reduction factor for the speech decoder post-net.
+            Spectrogram length reduction factor for the speech decoder inputs.
         max_speech_positions (`int`, *optional*, defaults to 4000):
             The maximum sequence length of speech features that this model might ever be used with.
         max_text_positions (`int`, *optional*, defaults to 450):
             The maximum sequence length of text features that this model might ever be used with.
         encoder_max_relative_position (`int`, *optional*, defaults to 160):
             Maximum distance for relative position embedding in the encoder.
+        use_guided_attention_loss (`bool`, *optional*, defaults to `True`):
+            Whether to apply guided attention loss while training the TTS model.
+        guided_attention_loss_num_heads (`int`, *optional*, defaults to 2):
+            Number of attention heads the guided attention loss will be applied to. Use -1 to apply this loss to all
+            attention heads.
+        guided_attention_loss_sigma (`float`, *optional*, defaults to 0.4):
+            Standard deviation for guided attention loss.
+        guided_attention_loss_scale (`float`, *optional*, defaults to 10.0):
+            Scaling coefficient for guided attention loss (also known as lambda).
         use_cache (`bool`, *optional*, defaults to `True`):
             Whether or not the model should return the last key/values attentions (not used by all models).
 
@@ -185,6 +184,7 @@ class SpeechT5Config(PretrainedConfig):
     >>> # Accessing the model configuration
     >>> configuration = model.config
     ```"""
+
     model_type = "speecht5"
     attribute_map = {"num_attention_heads": "encoder_attention_heads", "num_hidden_layers": "encoder_layers"}
 
@@ -241,6 +241,10 @@ class SpeechT5Config(PretrainedConfig):
         max_speech_positions=4000,
         max_text_positions=450,
         encoder_max_relative_position=160,
+        use_guided_attention_loss=True,
+        guided_attention_loss_num_heads=2,
+        guided_attention_loss_sigma=0.4,
+        guided_attention_loss_scale=10.0,
         use_cache=True,
         is_encoder_decoder=True,
         **kwargs,
@@ -311,6 +315,12 @@ class SpeechT5Config(PretrainedConfig):
         self.max_speech_positions = max_speech_positions
         self.max_text_positions = max_text_positions
         self.encoder_max_relative_position = encoder_max_relative_position
+
+        self.use_guided_attention_loss = use_guided_attention_loss
+        self.guided_attention_loss_num_heads = guided_attention_loss_num_heads
+        self.guided_attention_loss_sigma = guided_attention_loss_sigma
+        self.guided_attention_loss_scale = guided_attention_loss_scale
+
         self.use_cache = use_cache
         self.is_encoder_decoder = is_encoder_decoder
 
@@ -379,6 +389,7 @@ class SpeechT5HifiGanConfig(PretrainedConfig):
     >>> # Accessing the model configuration
     >>> configuration = model.config
     ```"""
+
     model_type = "hifigan"
 
     def __init__(

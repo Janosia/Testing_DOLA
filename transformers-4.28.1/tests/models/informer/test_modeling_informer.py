@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Testing suite for the PyTorch Informer model. """
+"""Testing suite for the PyTorch Informer model."""
 
 import inspect
 import tempfile
@@ -35,7 +35,11 @@ if is_torch_available():
     import torch
 
     from transformers import InformerConfig, InformerForPrediction, InformerModel
-    from transformers.models.informer.modeling_informer import InformerDecoder, InformerEncoder
+    from transformers.models.informer.modeling_informer import (
+        InformerDecoder,
+        InformerEncoder,
+        InformerSinusoidalPositionalEmbedding,
+    )
 
 
 @require_torch
@@ -164,6 +168,12 @@ class InformerModelTester:
 
         self.parent.assertTrue((encoder_last_hidden_state_2 - encoder_last_hidden_state).abs().max().item() < 1e-3)
 
+        embed_positions = InformerSinusoidalPositionalEmbedding(
+            config.context_length + config.prediction_length, config.d_model
+        )
+        self.parent.assertTrue(torch.equal(model.encoder.embed_positions.weight, embed_positions.weight))
+        self.parent.assertTrue(torch.equal(model.decoder.embed_positions.weight, embed_positions.weight))
+
         with tempfile.TemporaryDirectory() as tmpdirname:
             decoder = model.get_decoder()
             decoder.save_pretrained(tmpdirname)
@@ -277,6 +287,28 @@ class InformerModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase
         pass
 
     def test_determinism(self):
+        pass
+
+    @unittest.skip("randomly selects U keys while calculating attentions")
+    def test_batching_equivalence(self):
+        pass
+
+    @unittest.skip(
+        reason="This architecure seem to not compute gradients properly when using GC, check: https://github.com/huggingface/transformers/pull/27124"
+    )
+    def test_training_gradient_checkpointing(self):
+        pass
+
+    @unittest.skip(
+        reason="This architecure seem to not compute gradients properly when using GC, check: https://github.com/huggingface/transformers/pull/27124"
+    )
+    def test_training_gradient_checkpointing_use_reentrant(self):
+        pass
+
+    @unittest.skip(
+        reason="This architecure seem to not compute gradients properly when using GC, check: https://github.com/huggingface/transformers/pull/27124"
+    )
+    def test_training_gradient_checkpointing_use_reentrant_false(self):
         pass
 
     # # Input is 'static_categorical_features' not 'input_ids'
@@ -438,7 +470,7 @@ class InformerModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase
 
 
 def prepare_batch(filename="train-batch.pt"):
-    file = hf_hub_download(repo_id="kashif/tourism-monthly-batch", filename=filename, repo_type="dataset")
+    file = hf_hub_download(repo_id="hf-internal-testing/tourism-monthly-batch", filename=filename, repo_type="dataset")
     batch = torch.load(file, map_location=torch_device)
     return batch
 

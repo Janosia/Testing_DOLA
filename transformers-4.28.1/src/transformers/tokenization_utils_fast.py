@@ -13,9 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
- Tokenization classes for fast tokenizers (provided by HuggingFace's tokenizers library). For slow (python) tokenizers
- see tokenization_utils.py
+Tokenization classes for fast tokenizers (provided by HuggingFace's tokenizers library). For slow (python) tokenizers
+see tokenization_utils.py
 """
+
 import copy
 import json
 import os
@@ -29,6 +30,8 @@ from tokenizers.decoders import Decoder as DecoderFast
 from tokenizers.trainers import BpeTrainer, UnigramTrainer, WordLevelTrainer, WordPieceTrainer
 
 from .convert_slow_tokenizer import convert_slow_tokenizer
+from .integrations.ggml import convert_gguf_tokenizer
+from .modeling_gguf_pytorch_utils import load_gguf_checkpoint
 from .tokenization_utils import PreTrainedTokenizer
 from .tokenization_utils_base import (
     INIT_TOKENIZER_DOCSTRING,
@@ -90,13 +93,14 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerBase):
 
     vocab_files_names = VOCAB_FILES_NAMES
     slow_tokenizer_class: PreTrainedTokenizer = None
-    can_save_slow_tokenizer: bool = True
 
     def __init__(self, *args, **kwargs):
         tokenizer_object = kwargs.pop("tokenizer_object", None)
         slow_tokenizer = kwargs.pop("__slow_tokenizer", None)
+        gguf_file = kwargs.pop("gguf_file", None)
         fast_tokenizer_file = kwargs.pop("tokenizer_file", None)
         from_slow = kwargs.pop("from_slow", False)
+        added_tokens_decoder = kwargs.pop("added_tokens_decoder", {})
 
         if from_slow and slow_tokenizer is None and self.slow_tokenizer_class is None:
             raise ValueError(
@@ -112,6 +116,12 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerBase):
         elif slow_tokenizer is not None:
             # We need to convert a slow tokenizer to build the backend
             fast_tokenizer = convert_slow_tokenizer(slow_tokenizer)
+        elif gguf_file is not None:
+            # We need to convert a slow tokenizer to build the backend
+            gguf_param = load_gguf_checkpoint(kwargs.get("vocab_file"))
+            architecture = gguf_param["config"]["model_type"]
+            tokenizer_dict = gguf_param["tokenizer"]
+            fast_tokenizer = convert_gguf_tokenizer(architecture, tokenizer_dict)
         elif self.slow_tokenizer_class is not None:
             # We need to create and convert a slow tokenizer to build the backend
             slow_tokenizer = self.slow_tokenizer_class(*args, **kwargs)
@@ -132,11 +142,78 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerBase):
 
         self._decode_use_source_tokenizer = False
 
+        _truncation = self._tokenizer.truncation
+
+        if _truncation is not None:
+            self._tokenizer.enable_truncation(**_truncation)
+            kwargs.setdefault("max_length", _truncation["max_length"])
+            kwargs.setdefault("truncation_side", _truncation["direction"])
+            kwargs.setdefault("stride", _truncation["stride"])
+            kwargs.setdefault("truncation_strategy", _truncation["strategy"])
+        else:
+            self._tokenizer.no_truncation()
+
+        _padding = self._tokenizer.padding
+        if _padding is not None:
+            self._tokenizer.enable_padding(**_padding)
+            kwargs.setdefault("pad_token", _padding["pad_token"])
+            kwargs.setdefault("pad_token_type_id", _padding["pad_type_id"])
+            kwargs.setdefault("padding_side", _padding["direction"])
+            kwargs.setdefault("max_length", _padding["length"])
+            kwargs.setdefault("pad_to_multiple_of", _padding["pad_to_multiple_of"])
+
         # We call this after having initialized the backend tokenizer because we update it.
         super().__init__(**kwargs)
 
+        # Set the splitting mode for special tokens for the tokenizer to be used throughout the class.
+        self._tokenizer.encode_special_tokens = self.split_special_tokens
+
+        # The following logic will be replace with a single add_tokens once a fix is pushed to tokenizers
+        # allows converting a slow -> fast, non-legacy: if the `tokenizer.json` does not have all the added tokens
+        # uses the information stored in `added_tokens_decoder`.
+        # this is costly for fast tokenizers as we re-compute the regex again. But not all tokens are added tokens
+        tokens_to_add = [
+            token
+            for index, token in sorted(added_tokens_decoder.items(), key=lambda x: x[0])
+            if token not in self.added_tokens_decoder
+        ]
+        encoder = list(self.added_tokens_encoder.keys()) + [str(token) for token in tokens_to_add]
+        # if some of the special tokens are strings, we check if we don't already have a token
+        tokens_to_add += [
+            token for token in self.all_special_tokens_extended if token not in encoder and token not in tokens_to_add
+        ]
+        if len(tokens_to_add) > 0:
+            # super hack: if a token.special is set, tokenizer ignores it for now so FIXME @ArthurZ
+            # Accumulate added tokens into batches of special/non-special tokens, because calling add_tokens() for
+            # individual tokens would repeatedly rebuild a trie, which can be slow.
+            is_last_special = None
+            tokens = []
+            special_tokens = self.all_special_tokens
+            for token in tokens_to_add:
+                is_special = (
+                    (token.special or str(token) in special_tokens)
+                    if isinstance(token, AddedToken)
+                    else str(token) in special_tokens
+                )
+                if is_last_special is None or is_last_special == is_special:
+                    tokens.append(token)
+                else:
+                    self._add_tokens(tokens, special_tokens=is_last_special)
+                    tokens = [token]
+                is_last_special = is_special
+            if tokens:
+                self._add_tokens(tokens, special_tokens=is_last_special)
+
     @property
     def is_fast(self) -> bool:
+        return True
+
+    @property
+    def can_save_slow_tokenizer(self) -> bool:
+        """
+        `bool`: Whether or not the slow tokenizer can be saved. Usually for sentencepiece based slow tokenizer, this
+        can only be `True` if the original `"sentencepiece.model"` was not deleted.
+        """
         return True
 
     @property
@@ -153,6 +230,24 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerBase):
     def vocab(self) -> Dict[str, int]:
         return self.get_vocab()
 
+    @property
+    def added_tokens_encoder(self) -> Dict[str, int]:
+        """
+        Returns the sorted mapping from string to index. The added tokens encoder is cached for performance
+        optimisation in `self._added_tokens_encoder` for the slow tokenizers.
+        """
+        return {k.content: v for v, k in sorted(self.added_tokens_decoder.items(), key=lambda item: item[0])}
+
+    @property
+    def added_tokens_decoder(self) -> Dict[int, AddedToken]:
+        """
+        Returns the added tokens in the vocabulary as a dictionary of index to AddedToken.
+
+        Returns:
+            `Dict[str, int]`: The added tokens.
+        """
+        return self._tokenizer.get_added_tokens_decoder()
+
     def get_added_vocab(self) -> Dict[str, int]:
         """
         Returns the added tokens in the vocabulary as a dictionary of token to index.
@@ -160,10 +255,7 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerBase):
         Returns:
             `Dict[str, int]`: The added tokens.
         """
-        base_vocab = self._tokenizer.get_vocab(with_added_tokens=False)
-        full_vocab = self._tokenizer.get_vocab(with_added_tokens=True)
-        added_vocab = {tok: index for tok, index in full_vocab.items() if tok not in base_vocab}
-        return added_vocab
+        return {k.content: v for v, k in sorted(self.added_tokens_decoder.items(), key=lambda item: item[0])}
 
     def __len__(self) -> int:
         """
@@ -249,10 +341,7 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerBase):
         if isinstance(tokens, str):
             return self._convert_token_to_id_with_added_voc(tokens)
 
-        ids = []
-        for token in tokens:
-            ids.append(self._convert_token_to_id_with_added_voc(token))
-        return ids
+        return [self._convert_token_to_id_with_added_voc(token) for token in tokens]
 
     def _convert_token_to_id_with_added_voc(self, token: str) -> int:
         index = self._tokenizer.token_to_id(token)
@@ -410,6 +499,7 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerBase):
         return_offsets_mapping: bool = False,
         return_length: bool = False,
         verbose: bool = True,
+        split_special_tokens: bool = False,
     ) -> BatchEncoding:
         if not isinstance(batch_text_or_text_pairs, (tuple, list)):
             raise TypeError(
@@ -424,6 +514,9 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerBase):
             stride=stride,
             pad_to_multiple_of=pad_to_multiple_of,
         )
+
+        if self._tokenizer.encode_special_tokens != split_special_tokens:
+            self._tokenizer.encode_special_tokens = split_special_tokens
 
         encodings = self._tokenizer.encode_batch(
             batch_text_or_text_pairs,
@@ -494,6 +587,7 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerBase):
         return_offsets_mapping: bool = False,
         return_length: bool = False,
         verbose: bool = True,
+        split_special_tokens: bool = False,
         **kwargs,
     ) -> BatchEncoding:
         batched_input = [(text, text_pair)] if text_pair else [text]
@@ -514,6 +608,7 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerBase):
             return_offsets_mapping=return_offsets_mapping,
             return_length=return_length,
             verbose=verbose,
+            split_special_tokens=split_special_tokens,
             **kwargs,
         )
 
@@ -589,7 +684,8 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerBase):
             added_tokens_file = os.path.join(
                 save_directory, (filename_prefix + "-" if filename_prefix else "") + ADDED_TOKENS_FILE
             )
-            added_vocab = self.get_added_vocab()
+            # make sure to be foward compatible
+            added_vocab = {tok: index for tok, index in self.added_tokens_encoder.items() if index >= self.vocab_size}
             if added_vocab:
                 with open(added_tokens_file, "w", encoding="utf-8") as f:
                     out_str = json.dumps(added_vocab, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
@@ -633,7 +729,7 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerBase):
             special_tokens_map (`Dict[str, str]`, *optional*):
                 If you want to rename some of the special tokens this tokenizer uses, pass along a mapping old special
                 token name to new special token name in this argument.
-            kwargs:
+            kwargs (`Dict[str, Any]`, *optional*):
                 Additional keyword arguments passed along to the trainer from the 🤗 Tokenizers library.
 
         Returns:
@@ -706,7 +802,7 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerBase):
             kwargs["end_of_word_suffix"] = tokenizer_json["model"]["end_of_word_suffix"]
         if tokenizer_json["model"]["type"] == "Unigram" and unk_token is not None:
             kwargs["unk_token"] = unk_token
-        if tokenizer_json["pre_tokenizer"]["type"] == "ByteLevel":
+        if tokenizer_json["pre_tokenizer"] is not None and tokenizer_json["pre_tokenizer"]["type"] == "ByteLevel":
             kwargs["initial_alphabet"] = pre_tokenizers_fast.ByteLevel.alphabet()
 
         trainer_class = MODEL_TO_TRAINER_MAPPING[tokenizer_json["model"]["type"]]
@@ -755,6 +851,7 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerBase):
                         lstrip=special_token_full.lstrip,
                         rstrip=special_token_full.rstrip,
                         normalized=special_token_full.normalized,
+                        special=True,
                     )
                 else:
                     kwargs[token] = special_token

@@ -11,15 +11,15 @@ from ..utils import (
     is_tf_available,
     is_torch_available,
 )
-from .base import PIPELINE_INIT_ARGS, ArgumentHandler, ChunkPipeline, Dataset
+from .base import ArgumentHandler, ChunkPipeline, Dataset, build_pipeline_init_args
 
 
 if is_tf_available():
     import tensorflow as tf
 
-    from ..models.auto.modeling_tf_auto import TF_MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING
+    from ..models.auto.modeling_tf_auto import TF_MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES
 if is_torch_available():
-    from ..models.auto.modeling_auto import MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING
+    from ..models.auto.modeling_auto import MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES
 
 
 class TokenClassificationArgumentHandler(ArgumentHandler):
@@ -59,7 +59,7 @@ class AggregationStrategy(ExplicitEnum):
 
 
 @add_end_docstrings(
-    PIPELINE_INIT_ARGS,
+    build_pipeline_init_args(has_tokenizer=True),
     r"""
         ignore_labels (`List[str]`, defaults to `["O"]`):
             A list of labels to ignore.
@@ -69,7 +69,8 @@ class AggregationStrategy(ExplicitEnum):
         stride (`int`, *optional*):
             If stride is provided, the pipeline is applied on all the text. The text is split into chunks of size
             model_max_length. Works only with fast tokenizers and `aggregation_strategy` different from `NONE`. The
-            value of this argument defines the number of overlapping tokens between chunks.
+            value of this argument defines the number of overlapping tokens between chunks. In other words, the model
+            will shift forward by `tokenizer.model_max_length - stride` tokens each step.
         aggregation_strategy (`str`, *optional*, defaults to `"none"`):
             The strategy to fuse (or not) tokens based on the model prediction.
 
@@ -89,8 +90,7 @@ class AggregationStrategy(ExplicitEnum):
                   cannot end up with different tags. scores will be averaged first across tokens, and then the maximum
                   label is applied.
                 - "max" : (works only on word based models) Will use the `SIMPLE` strategy except that words, cannot
-                  end up with different tags. Word entity will simply be the token with the maximum score.
-    """,
+                  end up with different tags. Word entity will simply be the token with the maximum score.""",
 )
 class TokenClassificationPipeline(ChunkPipeline):
     """
@@ -134,9 +134,9 @@ class TokenClassificationPipeline(ChunkPipeline):
     def __init__(self, args_parser=TokenClassificationArgumentHandler(), *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.check_model_type(
-            TF_MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING
+            TF_MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES
             if self.framework == "tf"
-            else MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING
+            else MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES
         )
 
         self._basic_tokenizer = BasicTokenizer(do_lower_case=False)
@@ -191,6 +191,10 @@ class TokenClassificationPipeline(ChunkPipeline):
         if ignore_labels is not None:
             postprocess_params["ignore_labels"] = ignore_labels
         if stride is not None:
+            if stride >= self.tokenizer.model_max_length:
+                raise ValueError(
+                    "`stride` must be less than `tokenizer.model_max_length` (or even lower if the tokenizer adds special tokens)"
+                )
             if aggregation_strategy == AggregationStrategy.NONE:
                 raise ValueError(
                     "`stride` was provided to process all the text but `aggregation_strategy="
@@ -486,7 +490,8 @@ class TokenClassificationPipeline(ChunkPipeline):
                 word_entities.append(self.aggregate_word(word_group, aggregation_strategy))
                 word_group = [entity]
         # Last item
-        word_entities.append(self.aggregate_word(word_group, aggregation_strategy))
+        if word_group is not None:
+            word_entities.append(self.aggregate_word(word_group, aggregation_strategy))
         return word_entities
 
     def group_sub_entities(self, entities: List[dict]) -> dict:
@@ -497,7 +502,7 @@ class TokenClassificationPipeline(ChunkPipeline):
             entities (`dict`): The entities predicted by the pipeline.
         """
         # Get the first entity in the entity group
-        entity = entities[0]["entity"].split("-")[-1]
+        entity = entities[0]["entity"].split("-", 1)[-1]
         scores = np.nanmean([entity["score"] for entity in entities])
         tokens = [entity["word"] for entity in entities]
 

@@ -34,7 +34,7 @@ from PIL import Image
 
 import transformers
 from transformers import (
-    MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING,
+    TF_MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING,
     AutoConfig,
     AutoImageProcessor,
     DefaultDataCollator,
@@ -46,6 +46,7 @@ from transformers import (
     set_seed,
 )
 from transformers.keras_callbacks import KerasMetricCallback
+from transformers.modeling_tf_utils import keras
 from transformers.trainer_utils import get_last_checkpoint, is_main_process
 from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
@@ -54,11 +55,11 @@ from transformers.utils.versions import require_version
 logger = logging.getLogger(__name__)
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
-check_min_version("4.28.0")
+check_min_version("4.42.0.dev0")
 
 require_version("datasets>=1.8.0", "To fix: pip install -r examples/pytorch/image-classification/requirements.txt")
 
-MODEL_CONFIG_CLASSES = list(MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING.keys())
+MODEL_CONFIG_CLASSES = list(TF_MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 
 
@@ -157,12 +158,22 @@ class ModelArguments:
         metadata={"help": "The specific model version to use (can be a branch name, tag name or commit id)."},
     )
     image_processor_name: str = field(default=None, metadata={"help": "Name or path of preprocessor config."})
-    use_auth_token: bool = field(
+    token: str = field(
+        default=None,
+        metadata={
+            "help": (
+                "The token to use as HTTP bearer authorization for remote files. If not specified, will use the token "
+                "generated when running `huggingface-cli login` (stored in `~/.huggingface`)."
+            )
+        },
+    )
+    trust_remote_code: bool = field(
         default=False,
         metadata={
             "help": (
-                "Will use the token generated when running `huggingface-cli login` (necessary to use this script "
-                "with private models)."
+                "Whether or not to allow for custom models defined on the Hub in their own modeling files. This option "
+                "should only be set to `True` for repositories you trust and in which you have read the code, as it will "
+                "execute code present on the Hub on your local machine."
             )
         },
     )
@@ -226,9 +237,6 @@ def main():
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
-    if not (training_args.do_train or training_args.do_eval or training_args.do_predict):
-        exit("Must specify at least one of --do_train, --do_eval or --do_predict!")
-
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/TensorFlow versions.
     send_example_telemetry("run_image_classification", model_args, data_args, framework="tensorflow")
@@ -262,11 +270,6 @@ def main():
         transformers.utils.logging.set_verbosity_info()
         transformers.utils.logging.enable_default_handler()
         transformers.utils.logging.enable_explicit_format()
-    # Log on each process the small summary:
-    logger.warning(
-        f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu}"
-        + f"distributed training: {bool(training_args.local_rank != -1)}, 16-bits training: {training_args.fp16}"
-    )
     logger.info(f"Training/evaluation parameters {training_args}")
 
     # region Dataset and labels
@@ -280,7 +283,7 @@ def main():
             data_args.dataset_config_name,
             cache_dir=model_args.cache_dir,
             task="image-classification",
-            use_auth_token=True if model_args.use_auth_token else None,
+            token=model_args.token,
         )
     else:
         data_files = {}
@@ -295,7 +298,7 @@ def main():
             task="image-classification",
         )
     # See more about loading any type of standard or custom dataset (from files, python dict, pandas DataFrame, etc) at
-    # https://huggingface.co/docs/datasets/loading_datasets.html.
+    # https://huggingface.co/docs/datasets/loading_datasets.
 
     # Prepare label mappings.
     # We'll include these in the model's config to get human readable labels in the Inference API.
@@ -314,13 +317,15 @@ def main():
         finetuning_task="image-classification",
         cache_dir=model_args.cache_dir,
         revision=model_args.model_revision,
-        use_auth_token=True if model_args.use_auth_token else None,
+        token=model_args.token,
+        trust_remote_code=model_args.trust_remote_code,
     )
     image_processor = AutoImageProcessor.from_pretrained(
         model_args.image_processor_name or model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
         revision=model_args.model_revision,
-        use_auth_token=True if model_args.use_auth_token else None,
+        token=model_args.token,
+        trust_remote_code=model_args.trust_remote_code,
     )
 
     # If we don't have a validation split, split off a percentage of train as validation.
@@ -340,7 +345,7 @@ def main():
 
     def _train_transforms(image):
         img_size = image_size
-        image = tf.keras.utils.img_to_array(image)
+        image = keras.utils.img_to_array(image)
         image = random_resized_crop(image, size=img_size)
         image = tf.image.random_flip_left_right(image)
         image /= 255.0
@@ -349,7 +354,7 @@ def main():
         return image
 
     def _val_transforms(image):
-        image = tf.keras.utils.img_to_array(image)
+        image = keras.utils.img_to_array(image)
         image = tf.image.resize(image, size=image_size)
         # image = np.array(image) # FIXME - use tf.image function
         image = center_crop(image, size=image_size)
@@ -417,7 +422,7 @@ def main():
     collate_fn = DefaultDataCollator(return_tensors="np")
 
     # Load the accuracy metric from the datasets package
-    metric = evaluate.load("accuracy")
+    metric = evaluate.load("accuracy", cache_dir=model_args.cache_dir)
 
     # Define our compute_metrics function. It takes an `EvalPrediction` object (a namedtuple with a
     # predictions and label_ids field) and has to return a dictionary string to float.
@@ -440,7 +445,8 @@ def main():
             from_pt=bool(".bin" in model_path),
             cache_dir=model_args.cache_dir,
             revision=model_args.model_revision,
-            use_auth_token=True if model_args.use_auth_token else None,
+            token=model_args.token,
+            trust_remote_code=model_args.trust_remote_code,
             ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
         )
         num_replicas = training_args.strategy.num_replicas_in_sync
@@ -484,7 +490,7 @@ def main():
                 collate_fn=collate_fn,
             ).with_options(dataset_options)
         else:
-            optimizer = None
+            optimizer = "sgd"  # Just write anything because we won't be using it
 
         if training_args.do_eval:
             eval_dataset = model.prepare_tf_dataset(
@@ -502,6 +508,8 @@ def main():
                 collate_fn=collate_fn,
             ).with_options(dataset_options)
 
+        # Transformers models compute the right loss for their task by default when labels are passed, and will
+        # use this for training unless you specify your own loss function in compile().
         model.compile(optimizer=optimizer, jit_compile=training_args.xla, metrics=["accuracy"])
 
         push_to_hub_model_id = training_args.push_to_hub_model_id
@@ -548,6 +556,7 @@ def main():
                 logging.info(f"{metric_name}: {value:.3f}")
 
         if training_args.output_dir is not None:
+            os.makedirs(training_args.output_dir, exist_ok=True)
             with open(os.path.join(training_args.output_dir, "all_results.json"), "w") as f:
                 f.write(json.dumps(eval_metrics))
 

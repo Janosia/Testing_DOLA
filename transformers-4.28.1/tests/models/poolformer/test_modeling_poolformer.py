@@ -12,10 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Testing suite for the PyTorch PoolFormer model. """
+"""Testing suite for the PyTorch PoolFormer model."""
 
-
-import inspect
 import unittest
 
 from transformers import is_torch_available, is_vision_available
@@ -31,13 +29,12 @@ if is_torch_available():
     import torch
 
     from transformers import MODEL_MAPPING, PoolFormerConfig, PoolFormerForImageClassification, PoolFormerModel
-    from transformers.models.poolformer.modeling_poolformer import POOLFORMER_PRETRAINED_MODEL_ARCHIVE_LIST
 
 
 if is_vision_available():
     from PIL import Image
 
-    from transformers import PoolFormerFeatureExtractor
+    from transformers import PoolFormerImageProcessor
 
 
 class PoolFormerConfigTester(ConfigTester):
@@ -125,7 +122,7 @@ class PoolFormerModelTester:
 class PoolFormerModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
     all_model_classes = (PoolFormerModel, PoolFormerForImageClassification) if is_torch_available() else ()
     pipeline_model_mapping = (
-        {"feature-extraction": PoolFormerModel, "image-classification": PoolFormerForImageClassification}
+        {"image-feature-extraction": PoolFormerModel, "image-classification": PoolFormerForImageClassification}
         if is_torch_available()
         else {}
     )
@@ -208,23 +205,11 @@ class PoolFormerModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
             loss = model(**inputs).loss
             loss.backward()
 
-    def test_forward_signature(self):
-        config, _ = self.model_tester.prepare_config_and_inputs_for_common()
-
-        for model_class in self.all_model_classes:
-            model = model_class(config)
-            signature = inspect.signature(model.forward)
-            # signature.parameters is an OrderedDict => so arg_names order is deterministic
-            arg_names = [*signature.parameters.keys()]
-
-            expected_arg_names = ["pixel_values"]
-            self.assertListEqual(arg_names[:1], expected_arg_names)
-
     @slow
     def test_model_from_pretrained(self):
-        for model_name in POOLFORMER_PRETRAINED_MODEL_ARCHIVE_LIST[:1]:
-            model = PoolFormerModel.from_pretrained(model_name)
-            self.assertIsNotNone(model)
+        model_name = "sail/poolformer_s12"
+        model = PoolFormerModel.from_pretrained(model_name)
+        self.assertIsNotNone(model)
 
 
 # We will verify our results on an image of cute cats
@@ -237,10 +222,10 @@ def prepare_img():
 class PoolFormerModelIntegrationTest(unittest.TestCase):
     @slow
     def test_inference_image_classification_head(self):
-        feature_extractor = PoolFormerFeatureExtractor()
+        image_processor = PoolFormerImageProcessor()
         model = PoolFormerForImageClassification.from_pretrained("sail/poolformer_s12").to(torch_device)
 
-        inputs = feature_extractor(images=prepare_img(), return_tensors="pt").to(torch_device)
+        inputs = image_processor(images=prepare_img(), return_tensors="pt").to(torch_device)
 
         # forward pass
         with torch.no_grad():

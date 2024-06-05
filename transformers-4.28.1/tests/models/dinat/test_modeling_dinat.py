@@ -12,10 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Testing suite for the PyTorch Dinat model. """
+"""Testing suite for the PyTorch Dinat model."""
 
 import collections
-import inspect
 import unittest
 
 from transformers import DinatConfig
@@ -33,7 +32,6 @@ if is_torch_available():
     from torch import nn
 
     from transformers import DinatBackbone, DinatForImageClassification, DinatModel
-    from transformers.models.dinat.modeling_dinat import DINAT_PRETRAINED_MODEL_ARCHIVE_LIST
 
 if is_vision_available():
     from PIL import Image
@@ -208,7 +206,7 @@ class DinatModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
         else ()
     )
     pipeline_model_mapping = (
-        {"feature-extraction": DinatModel, "image-classification": DinatForImageClassification}
+        {"image-feature-extraction": DinatModel, "image-classification": DinatForImageClassification}
         if is_torch_available()
         else {}
     )
@@ -263,18 +261,6 @@ class DinatModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
             self.assertIsInstance(model.get_input_embeddings(), (nn.Module))
             x = model.get_output_embeddings()
             self.assertTrue(x is None or isinstance(x, nn.Linear))
-
-    def test_forward_signature(self):
-        config, _ = self.model_tester.prepare_config_and_inputs_for_common()
-
-        for model_class in self.all_model_classes:
-            model = model_class(config)
-            signature = inspect.signature(model.forward)
-            # signature.parameters is an OrderedDict => so arg_names order is deterministic
-            arg_names = [*signature.parameters.keys()]
-
-            expected_arg_names = ["pixel_values"]
-            self.assertListEqual(arg_names[:1], expected_arg_names)
 
     def test_attention_outputs(self):
         self.skipTest("Dinat's attention operation is handled entirely by NATTEN.")
@@ -343,9 +329,9 @@ class DinatModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
 
     @slow
     def test_model_from_pretrained(self):
-        for model_name in DINAT_PRETRAINED_MODEL_ARCHIVE_LIST[:1]:
-            model = DinatModel.from_pretrained(model_name)
-            self.assertIsNotNone(model)
+        model_name = "shi-labs/dinat-mini-in1k-224"
+        model = DinatModel.from_pretrained(model_name)
+        self.assertIsNotNone(model)
 
     def test_initialization(self):
         config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
@@ -367,16 +353,16 @@ class DinatModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
 @require_torch
 class DinatModelIntegrationTest(unittest.TestCase):
     @cached_property
-    def default_feature_extractor(self):
+    def default_image_processor(self):
         return AutoImageProcessor.from_pretrained("shi-labs/dinat-mini-in1k-224") if is_vision_available() else None
 
     @slow
     def test_inference_image_classification_head(self):
         model = DinatForImageClassification.from_pretrained("shi-labs/dinat-mini-in1k-224").to(torch_device)
-        feature_extractor = self.default_feature_extractor
+        image_processor = self.default_image_processor
 
         image = Image.open("./tests/fixtures/tests_samples/COCO/000000039769.png")
-        inputs = feature_extractor(images=image, return_tensors="pt").to(torch_device)
+        inputs = image_processor(images=image, return_tensors="pt").to(torch_device)
 
         # forward pass
         with torch.no_grad():

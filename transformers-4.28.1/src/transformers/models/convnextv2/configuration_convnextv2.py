@@ -12,21 +12,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" ConvNeXTV2 model configuration"""
-
+"""ConvNeXTV2 model configuration"""
 
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
+from ...utils.backbone_utils import BackboneConfigMixin, get_aligned_output_features_output_indices
 
 
 logger = logging.get_logger(__name__)
 
-CONVNEXTV2_PRETRAINED_CONFIG_ARCHIVE_MAP = {
-    "facebook/convnextv2-tiny-1k-224": "https://huggingface.co/facebook/convnextv2-tiny-1k-224/resolve/main/config.json",
-}
 
-
-class ConvNextV2Config(PretrainedConfig):
+class ConvNextV2Config(BackboneConfigMixin, PretrainedConfig):
     r"""
     This is the configuration class to store the configuration of a [`ConvNextV2Model`]. It is used to instantiate an
     ConvNeXTV2 model according to the specified arguments, defining the model architecture. Instantiating a
@@ -59,11 +55,13 @@ class ConvNextV2Config(PretrainedConfig):
         out_features (`List[str]`, *optional*):
             If used as backbone, list of features to output. Can be any of `"stem"`, `"stage1"`, `"stage2"`, etc.
             (depending on how many stages the model has). If unset and `out_indices` is set, will default to the
-            corresponding stages. If unset and `out_indices` is unset, will default to the last stage.
+            corresponding stages. If unset and `out_indices` is unset, will default to the last stage. Must be in the
+            same order as defined in the `stage_names` attribute.
         out_indices (`List[int]`, *optional*):
             If used as backbone, list of indices of features to output. Can be any of 0, 1, 2, etc. (depending on how
             many stages the model has). If unset and `out_features` is set, will default to the corresponding stages.
-            If unset and `out_features` is unset, will default to the last stage.
+            If unset and `out_features` is unset, will default to the last stage. Must be in the
+            same order as defined in the `stage_names` attribute.
 
     Example:
     ```python
@@ -78,6 +76,7 @@ class ConvNextV2Config(PretrainedConfig):
     >>> # Accessing the model configuration
     >>> configuration = model.config
     ```"""
+
     model_type = "convnextv2"
 
     def __init__(
@@ -109,35 +108,6 @@ class ConvNextV2Config(PretrainedConfig):
         self.drop_path_rate = drop_path_rate
         self.image_size = image_size
         self.stage_names = ["stem"] + [f"stage{idx}" for idx in range(1, len(self.depths) + 1)]
-
-        if out_features is not None and out_indices is not None:
-            if len(out_features) != len(out_indices):
-                raise ValueError("out_features and out_indices should have the same length if both are set")
-            elif out_features != [self.stage_names[idx] for idx in out_indices]:
-                raise ValueError("out_features and out_indices should correspond to the same stages if both are set")
-
-        if out_features is None and out_indices is not None:
-            out_features = [self.stage_names[idx] for idx in out_indices]
-        elif out_features is not None and out_indices is None:
-            out_indices = [self.stage_names.index(feature) for feature in out_features]
-        elif out_features is None and out_indices is None:
-            out_features = [self.stage_names[-1]]
-            out_indices = [len(self.stage_names) - 1]
-
-        if out_features is not None:
-            if not isinstance(out_features, list):
-                raise ValueError("out_features should be a list")
-            for feature in out_features:
-                if feature not in self.stage_names:
-                    raise ValueError(
-                        f"Feature {feature} is not a valid feature name. Valid names are {self.stage_names}"
-                    )
-        if out_indices is not None:
-            if not isinstance(out_indices, (list, tuple)):
-                raise ValueError("out_indices should be a list or tuple")
-            for idx in out_indices:
-                if idx >= len(self.stage_names):
-                    raise ValueError(f"Index {idx} is not a valid index for a list of length {len(self.stage_names)}")
-
-        self.out_features = out_features
-        self.out_indices = out_indices
+        self._out_features, self._out_indices = get_aligned_output_features_output_indices(
+            out_features=out_features, out_indices=out_indices, stage_names=self.stage_names
+        )

@@ -148,7 +148,7 @@ def convert_megatron_checkpoint(args, input_state_dict, config):
     transformer = lm["transformer"] if "transformer" in lm.keys() else lm["encoder"]
 
     # The regex to extract layer names.
-    layer_re = re.compile("layers\.(\d+)\.([a-z0-9_.]+)\.([a-z]+)")
+    layer_re = re.compile(r"layers\.(\d+)\.([a-z0-9_.]+)\.([a-z]+)")
 
     # The simple map of names for "automated" rules.
     megatron_to_transformers = {
@@ -324,13 +324,13 @@ def main():
     if ds_args is not None:
         tokenizer_type = ds_args.tokenizer_type
         if tokenizer_type == "GPT2BPETokenizer":
-            tokenizer_model_name = "gpt2"
+            tokenizer_model_name = "openai-community/gpt2"
         elif tokenizer_type == "PretrainedFromHF":
             tokenizer_model_name = ds_args.tokenizer_name_or_path
         else:
             raise ValueError(f"Unrecognized tokenizer_type {tokenizer_type}")
     else:
-        tokenizer_model_name = "gpt2"
+        tokenizer_model_name = "openai-community/gpt2"
 
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_model_name)
     tokenizer_class = type(tokenizer).__name__

@@ -12,12 +12,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Testing suite for the PyTorch BioGPT model. """
+"""Testing suite for the PyTorch BioGPT model."""
 
 import math
 import unittest
 
-from transformers import BioGptConfig, is_torch_available
+from transformers import BioGptConfig, is_sacremoses_available, is_torch_available
 from transformers.testing_utils import require_torch, slow, torch_device
 
 from ...generation.test_utils import GenerationTesterMixin
@@ -29,8 +29,13 @@ from ...test_pipeline_mixin import PipelineTesterMixin
 if is_torch_available():
     import torch
 
-    from transformers import BioGptForCausalLM, BioGptForTokenClassification, BioGptModel, BioGptTokenizer
-    from transformers.models.biogpt.modeling_biogpt import BIOGPT_PRETRAINED_MODEL_ARCHIVE_LIST
+    from transformers import (
+        BioGptForCausalLM,
+        BioGptForSequenceClassification,
+        BioGptForTokenClassification,
+        BioGptModel,
+        BioGptTokenizer,
+    )
 
 
 class BioGptModelTester:
@@ -45,7 +50,7 @@ class BioGptModelTester:
         use_labels=True,
         vocab_size=99,
         hidden_size=32,
-        num_hidden_layers=5,
+        num_hidden_layers=2,
         num_attention_heads=4,
         intermediate_size=37,
         hidden_act="gelu",
@@ -274,15 +279,21 @@ class BioGptModelTester:
 
 @require_torch
 class BioGptModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin, unittest.TestCase):
-    all_model_classes = (BioGptModel, BioGptForCausalLM, BioGptForTokenClassification) if is_torch_available() else ()
+    all_model_classes = (
+        (BioGptModel, BioGptForCausalLM, BioGptForSequenceClassification, BioGptForTokenClassification)
+        if is_torch_available()
+        else ()
+    )
     all_generative_model_classes = (BioGptForCausalLM,) if is_torch_available() else ()
     pipeline_model_mapping = (
         {
             "feature-extraction": BioGptModel,
+            "text-classification": BioGptForSequenceClassification,
             "text-generation": BioGptForCausalLM,
             "token-classification": BioGptForTokenClassification,
+            "zero-shot": BioGptForSequenceClassification,
         }
-        if is_torch_available()
+        if is_torch_available() and is_sacremoses_available()
         else {}
     )
     test_pruning = False
@@ -370,9 +381,42 @@ class BioGptModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMix
 
     @slow
     def test_model_from_pretrained(self):
-        for model_name in BIOGPT_PRETRAINED_MODEL_ARCHIVE_LIST[:1]:
-            model = BioGptModel.from_pretrained(model_name)
-            self.assertIsNotNone(model)
+        model_name = "microsoft/biogpt"
+        model = BioGptModel.from_pretrained(model_name)
+        self.assertIsNotNone(model)
+
+    # Copied from tests.models.opt.test_modeling_opt.OPTModelTest.test_opt_sequence_classification_model with OPT->BioGpt,opt->biogpt,prepare_config_and_inputs->prepare_config_and_inputs_for_common
+    def test_biogpt_sequence_classification_model(self):
+        config, input_dict = self.model_tester.prepare_config_and_inputs_for_common()
+        config.num_labels = 3
+        input_ids = input_dict["input_ids"]
+        attention_mask = input_ids.ne(1).to(torch_device)
+        sequence_labels = ids_tensor([self.model_tester.batch_size], self.model_tester.type_sequence_label_size)
+        model = BioGptForSequenceClassification(config)
+        model.to(torch_device)
+        model.eval()
+        result = model(input_ids, attention_mask=attention_mask, labels=sequence_labels)
+        self.assertEqual(result.logits.shape, (self.model_tester.batch_size, self.model_tester.num_labels))
+
+    # Copied from tests.models.opt.test_modeling_opt.OPTModelTest.test_opt_sequence_classification_model_for_multi_label with OPT->BioGpt,opt->biogpt,prepare_config_and_inputs->prepare_config_and_inputs_for_common
+    def test_biogpt_sequence_classification_model_for_multi_label(self):
+        config, input_dict = self.model_tester.prepare_config_and_inputs_for_common()
+        config.num_labels = 3
+        config.problem_type = "multi_label_classification"
+        input_ids = input_dict["input_ids"]
+        attention_mask = input_ids.ne(1).to(torch_device)
+        sequence_labels = ids_tensor(
+            [self.model_tester.batch_size, config.num_labels], self.model_tester.type_sequence_label_size
+        ).to(torch.float)
+        model = BioGptForSequenceClassification(config)
+        model.to(torch_device)
+        model.eval()
+        result = model(input_ids, attention_mask=attention_mask, labels=sequence_labels)
+        self.assertEqual(result.logits.shape, (self.model_tester.batch_size, self.model_tester.num_labels))
+
+    @unittest.skip("The `input_embeds` when fed don't produce the same results.")
+    def test_beam_sample_generate(self):
+        pass
 
 
 @require_torch

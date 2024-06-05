@@ -48,8 +48,7 @@ class Seq2SeqTrainingArguments(TrainingArguments):
             Allows to load a [`~generation.GenerationConfig`] from the `from_pretrained` method. This can be either:
 
             - a string, the *model id* of a pretrained model configuration hosted inside a model repo on
-              huggingface.co. Valid model ids can be located at the root-level, like `bert-base-uncased`, or namespaced
-              under a user or organization name, like `dbmdz/bert-base-german-cased`.
+              huggingface.co.
             - a path to a *directory* containing a configuration file saved using the
               [`~GenerationConfig.save_pretrained`] method, e.g., `./my_model_directory/`.
             - a [`~generation.GenerationConfig`] object.
@@ -83,3 +82,15 @@ class Seq2SeqTrainingArguments(TrainingArguments):
             "help": "Model id, file path or url pointing to a GenerationConfig json file, to use during prediction."
         },
     )
+
+    def to_dict(self):
+        """
+        Serializes this instance while replace `Enum` by their values and `GenerationConfig` by dictionaries (for JSON
+        serialization support). It obfuscates the token values by removing their value.
+        """
+        # filter out fields that are defined as field(init=False)
+        d = super().to_dict()
+        for k, v in d.items():
+            if isinstance(v, GenerationConfig):
+                d[k] = v.to_dict()
+        return d

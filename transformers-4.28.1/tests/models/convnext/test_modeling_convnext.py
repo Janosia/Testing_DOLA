@@ -12,10 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Testing suite for the PyTorch ConvNext model. """
+"""Testing suite for the PyTorch ConvNext model."""
 
-
-import inspect
 import unittest
 
 from transformers import ConvNextConfig
@@ -32,13 +30,12 @@ if is_torch_available():
     import torch
 
     from transformers import ConvNextBackbone, ConvNextForImageClassification, ConvNextModel
-    from transformers.models.convnext.modeling_convnext import CONVNEXT_PRETRAINED_MODEL_ARCHIVE_LIST
 
 
 if is_vision_available():
     from PIL import Image
 
-    from transformers import AutoFeatureExtractor
+    from transformers import AutoImageProcessor
 
 
 class ConvNextModelTester:
@@ -173,7 +170,7 @@ class ConvNextModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase
         else ()
     )
     pipeline_model_mapping = (
-        {"feature-extraction": ConvNextModel, "image-classification": ConvNextForImageClassification}
+        {"image-feature-extraction": ConvNextModel, "image-classification": ConvNextForImageClassification}
         if is_torch_available()
         else {}
     )
@@ -211,18 +208,6 @@ class ConvNextModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase
     @unittest.skip(reason="ConvNext does not use feedforward chunking")
     def test_feed_forward_chunking(self):
         pass
-
-    def test_forward_signature(self):
-        config, _ = self.model_tester.prepare_config_and_inputs_for_common()
-
-        for model_class in self.all_model_classes:
-            model = model_class(config)
-            signature = inspect.signature(model.forward)
-            # signature.parameters is an OrderedDict => so arg_names order is deterministic
-            arg_names = [*signature.parameters.keys()]
-
-            expected_arg_names = ["pixel_values"]
-            self.assertListEqual(arg_names[:1], expected_arg_names)
 
     def test_model(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
@@ -270,9 +255,9 @@ class ConvNextModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase
 
     @slow
     def test_model_from_pretrained(self):
-        for model_name in CONVNEXT_PRETRAINED_MODEL_ARCHIVE_LIST[:1]:
-            model = ConvNextModel.from_pretrained(model_name)
-            self.assertIsNotNone(model)
+        model_name = "facebook/convnext-tiny-224"
+        model = ConvNextModel.from_pretrained(model_name)
+        self.assertIsNotNone(model)
 
 
 # We will verify our results on an image of cute cats
@@ -285,16 +270,16 @@ def prepare_img():
 @require_vision
 class ConvNextModelIntegrationTest(unittest.TestCase):
     @cached_property
-    def default_feature_extractor(self):
-        return AutoFeatureExtractor.from_pretrained("facebook/convnext-tiny-224") if is_vision_available() else None
+    def default_image_processor(self):
+        return AutoImageProcessor.from_pretrained("facebook/convnext-tiny-224") if is_vision_available() else None
 
     @slow
     def test_inference_image_classification_head(self):
         model = ConvNextForImageClassification.from_pretrained("facebook/convnext-tiny-224").to(torch_device)
 
-        feature_extractor = self.default_feature_extractor
+        image_processor = self.default_image_processor
         image = prepare_img()
-        inputs = feature_extractor(images=image, return_tensors="pt").to(torch_device)
+        inputs = image_processor(images=image, return_tensors="pt").to(torch_device)
 
         # forward pass
         with torch.no_grad():

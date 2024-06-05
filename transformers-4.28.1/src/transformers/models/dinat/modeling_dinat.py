@@ -12,8 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" PyTorch Dilated Neighborhood Attention Transformer model."""
-
+"""PyTorch Dilated Neighborhood Attention Transformer model."""
 
 import math
 from dataclasses import dataclass
@@ -26,7 +25,7 @@ from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
 from ...modeling_outputs import BackboneOutput
-from ...modeling_utils import BackboneMixin, PreTrainedModel
+from ...modeling_utils import PreTrainedModel
 from ...pytorch_utils import find_pruneable_heads_and_indices, prune_linear_layer
 from ...utils import (
     ModelOutput,
@@ -39,6 +38,7 @@ from ...utils import (
     replace_return_docstrings,
     requires_backends,
 )
+from ...utils.backbone_utils import BackboneMixin
 from .configuration_dinat import DinatConfig
 
 
@@ -67,16 +67,10 @@ _IMAGE_CLASS_CHECKPOINT = "shi-labs/dinat-mini-in1k-224"
 _IMAGE_CLASS_EXPECTED_OUTPUT = "tabby, tabby cat"
 
 
-DINAT_PRETRAINED_MODEL_ARCHIVE_LIST = [
-    "shi-labs/dinat-mini-in1k-224",
-    # See all Dinat models at https://huggingface.co/models?filter=dinat
-]
-
 # drop_path and DinatDropPath are from the timm library.
 
 
 @dataclass
-# Copied from transformers.models.nat.modeling_nat.NatEncoderOutput with Nat->Dinat
 class DinatEncoderOutput(ModelOutput):
     """
     Dinat encoder's outputs, with potential hidden states and attentions.
@@ -104,13 +98,12 @@ class DinatEncoderOutput(ModelOutput):
     """
 
     last_hidden_state: torch.FloatTensor = None
-    hidden_states: Optional[Tuple[torch.FloatTensor]] = None
-    attentions: Optional[Tuple[torch.FloatTensor]] = None
-    reshaped_hidden_states: Optional[Tuple[torch.FloatTensor]] = None
+    hidden_states: Optional[Tuple[torch.FloatTensor, ...]] = None
+    attentions: Optional[Tuple[torch.FloatTensor, ...]] = None
+    reshaped_hidden_states: Optional[Tuple[torch.FloatTensor, ...]] = None
 
 
 @dataclass
-# Copied from transformers.models.nat.modeling_nat.NatModelOutput with Nat->Dinat
 class DinatModelOutput(ModelOutput):
     """
     Dinat model's outputs that also contains a pooling of the last hidden states.
@@ -141,13 +134,12 @@ class DinatModelOutput(ModelOutput):
 
     last_hidden_state: torch.FloatTensor = None
     pooler_output: Optional[torch.FloatTensor] = None
-    hidden_states: Optional[Tuple[torch.FloatTensor]] = None
-    attentions: Optional[Tuple[torch.FloatTensor]] = None
-    reshaped_hidden_states: Optional[Tuple[torch.FloatTensor]] = None
+    hidden_states: Optional[Tuple[torch.FloatTensor, ...]] = None
+    attentions: Optional[Tuple[torch.FloatTensor, ...]] = None
+    reshaped_hidden_states: Optional[Tuple[torch.FloatTensor, ...]] = None
 
 
 @dataclass
-# Copied from transformers.models.nat.modeling_nat.NatImageClassifierOutput with Nat->Dinat
 class DinatImageClassifierOutput(ModelOutput):
     """
     Dinat outputs for image classification.
@@ -178,12 +170,11 @@ class DinatImageClassifierOutput(ModelOutput):
 
     loss: Optional[torch.FloatTensor] = None
     logits: torch.FloatTensor = None
-    hidden_states: Optional[Tuple[torch.FloatTensor]] = None
-    attentions: Optional[Tuple[torch.FloatTensor]] = None
-    reshaped_hidden_states: Optional[Tuple[torch.FloatTensor]] = None
+    hidden_states: Optional[Tuple[torch.FloatTensor, ...]] = None
+    attentions: Optional[Tuple[torch.FloatTensor, ...]] = None
+    reshaped_hidden_states: Optional[Tuple[torch.FloatTensor, ...]] = None
 
 
-# Copied from transformers.models.nat.modeling_nat.NatEmbeddings with Nat->Dinat
 class DinatEmbeddings(nn.Module):
     """
     Construct the patch and position embeddings.
@@ -206,7 +197,6 @@ class DinatEmbeddings(nn.Module):
         return embeddings
 
 
-# Copied from transformers.models.nat.modeling_nat.NatPatchEmbeddings with Nat->Dinat
 class DinatPatchEmbeddings(nn.Module):
     """
     This class turns `pixel_values` of shape `(batch_size, num_channels, height, width)` into the initial
@@ -243,7 +233,6 @@ class DinatPatchEmbeddings(nn.Module):
         return embeddings
 
 
-# Copied from transformers.models.nat.modeling_nat.NatDownsampler with Nat->Dinat
 class DinatDownsampler(nn.Module):
     """
     Convolutional Downsampling Layer.
@@ -268,7 +257,7 @@ class DinatDownsampler(nn.Module):
 
 
 # Copied from transformers.models.beit.modeling_beit.drop_path
-def drop_path(input, drop_prob=0.0, training=False, scale_by_keep=True):
+def drop_path(input: torch.Tensor, drop_prob: float = 0.0, training: bool = False) -> torch.Tensor:
     """
     Drop paths (Stochastic Depth) per sample (when applied in main path of residual blocks).
 
@@ -326,7 +315,6 @@ class NeighborhoodAttention(nn.Module):
 
         self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
 
-    # Copied from transformers.models.nat.modeling_nat.NeighborhoodAttention.transpose_for_scores with Nat->Dinat
     def transpose_for_scores(self, x):
         new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
         x = x.view(new_x_shape)
@@ -366,7 +354,6 @@ class NeighborhoodAttention(nn.Module):
         return outputs
 
 
-# Copied from transformers.models.nat.modeling_nat.NeighborhoodAttentionOutput
 class NeighborhoodAttentionOutput(nn.Module):
     def __init__(self, config, dim):
         super().__init__()
@@ -387,7 +374,6 @@ class NeighborhoodAttentionModule(nn.Module):
         self.output = NeighborhoodAttentionOutput(config, dim)
         self.pruned_heads = set()
 
-    # Copied from transformers.models.nat.modeling_nat.NeighborhoodAttentionModule.prune_heads
     def prune_heads(self, heads):
         if len(heads) == 0:
             return
@@ -406,7 +392,6 @@ class NeighborhoodAttentionModule(nn.Module):
         self.self.all_head_size = self.self.attention_head_size * self.self.num_attention_heads
         self.pruned_heads = self.pruned_heads.union(heads)
 
-    # Copied from transformers.models.nat.modeling_nat.NeighborhoodAttentionModule.forward
     def forward(
         self,
         hidden_states: torch.Tensor,
@@ -418,7 +403,6 @@ class NeighborhoodAttentionModule(nn.Module):
         return outputs
 
 
-# Copied from transformers.models.nat.modeling_nat.NatIntermediate with Nat->Dinat
 class DinatIntermediate(nn.Module):
     def __init__(self, config, dim):
         super().__init__()
@@ -434,7 +418,6 @@ class DinatIntermediate(nn.Module):
         return hidden_states
 
 
-# Copied from transformers.models.nat.modeling_nat.NatOutput with Nat->Dinat
 class DinatOutput(nn.Module):
     def __init__(self, config, dim):
         super().__init__()
@@ -544,7 +527,6 @@ class DinatStage(nn.Module):
 
         self.pointing = False
 
-    # Copied from transformers.models.nat.modeling_nat.NatStage.forward
     def forward(
         self,
         hidden_states: torch.Tensor,
@@ -587,7 +569,6 @@ class DinatEncoder(nn.Module):
             ]
         )
 
-    # Copied from transformers.models.nat.modeling_nat.NatEncoder.forward with Nat->Dinat
     def forward(
         self,
         hidden_states: torch.Tensor,
@@ -659,9 +640,6 @@ class DinatPreTrainedModel(PreTrainedModel):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
 
-    def _set_gradient_checkpointing(self, module: DinatEncoder, value: bool = False) -> None:
-        pass
-
 
 DINAT_START_DOCSTRING = r"""
     This model is a PyTorch [torch.nn.Module](https://pytorch.org/docs/stable/nn.html#torch.nn.Module) sub-class. Use
@@ -695,7 +673,6 @@ DINAT_INPUTS_DOCSTRING = r"""
     "The bare Dinat Model transformer outputting raw hidden-states without any specific head on top.",
     DINAT_START_DOCSTRING,
 )
-# Copied from transformers.models.nat.modeling_nat.NatModel with Nat->Dinat, NAT->DINAT
 class DinatModel(DinatPreTrainedModel):
     def __init__(self, config, add_pooling_layer=True):
         super().__init__(config)
@@ -882,24 +859,17 @@ class DinatForImageClassification(DinatPreTrainedModel):
 class DinatBackbone(DinatPreTrainedModel, BackboneMixin):
     def __init__(self, config):
         super().__init__(config)
+        super()._init_backbone(config)
 
         requires_backends(self, ["natten"])
 
-        self.stage_names = config.stage_names
-
         self.embeddings = DinatEmbeddings(config)
         self.encoder = DinatEncoder(config)
-
-        self.out_features = config.out_features if config.out_features is not None else [self.stage_names[-1]]
-        if config.out_indices is not None:
-            self.out_indices = config.out_indices
-        else:
-            self.out_indices = tuple(i for i, layer in enumerate(self.stage_names) if layer in self.out_features)
         self.num_features = [config.embed_dim] + [int(config.embed_dim * 2**i) for i in range(len(config.depths))]
 
         # Add layer norms to hidden states of out_features
         hidden_states_norms = {}
-        for stage, num_channels in zip(self.out_features, self.channels):
+        for stage, num_channels in zip(self._out_features, self.channels):
             hidden_states_norms[stage] = nn.LayerNorm(num_channels)
         self.hidden_states_norms = nn.ModuleDict(hidden_states_norms)
 

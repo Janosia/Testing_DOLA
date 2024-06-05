@@ -43,7 +43,15 @@ class DoLa:
             raise ValueError(f"Invalid device: {self.device}")
         
         '''tokenizer = AutoTokenizer.from_pretrained(model_name if not 'vicuna' in model_name else 'huggyllama/llama-7b')'''
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        if 'vicuna' in model_name:
+            tokenizer_name = 'huggyllama/llama-7b'
+        else:
+            tokenizer_name = model_name
+        
+        # Load the tokenizer and model
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+        # model = AutoModelForCausalLM.from_pretrained(model_name, low_cpu_mem_usage=True)
+        # tokenizer = AutoTokenizer.from_pretrained(model_name)
         model = AutoModelForCausalLM.from_pretrained(model_name,low_cpu_mem_usage=True, **kwargs)
 
         '''model = AutoModelForCausalLM.from_pretrained(model_name,

@@ -12,8 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" PyTorch SegFormer model."""
-
+"""PyTorch SegFormer model."""
 
 import math
 from typing import Optional, Tuple, Union
@@ -51,11 +50,6 @@ _EXPECTED_OUTPUT_SHAPE = [1, 256, 16, 16]
 _IMAGE_CLASS_CHECKPOINT = "nvidia/mit-b0"
 _IMAGE_CLASS_EXPECTED_OUTPUT = "tabby, tabby cat"
 
-SEGFORMER_PRETRAINED_MODEL_ARCHIVE_LIST = [
-    "nvidia/segformer-b0-finetuned-ade-512-512",
-    # See all SegFormer models at https://huggingface.co/models?filter=segformer
-]
-
 
 class SegFormerImageClassifierOutput(ImageClassifierOutput):
     """
@@ -84,8 +78,8 @@ class SegFormerImageClassifierOutput(ImageClassifierOutput):
     attentions: Optional[Tuple[torch.FloatTensor]] = None
 
 
-# Copied from transformers.models.convnext.modeling_convnext.drop_path
-def drop_path(input, drop_prob: float = 0.0, training: bool = False, scale_by_keep=True):
+# Copied from transformers.models.beit.modeling_beit.drop_path
+def drop_path(input: torch.Tensor, drop_prob: float = 0.0, training: bool = False) -> torch.Tensor:
     """
     Drop paths (Stochastic Depth) per sample (when applied in main path of residual blocks).
 

@@ -12,14 +12,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Testing suite for the PyTorch Data2VecVision model. """
+"""Testing suite for the PyTorch Data2VecVision model."""
 
-
-import inspect
 import unittest
 
 from transformers import Data2VecVisionConfig
-from transformers.models.auto import get_values
 from transformers.testing_utils import require_torch, require_torch_multi_gpu, require_vision, slow, torch_device
 from transformers.utils import cached_property, is_torch_available, is_vision_available
 
@@ -33,18 +30,17 @@ if is_torch_available():
     from torch import nn
 
     from transformers import (
-        MODEL_MAPPING,
         Data2VecVisionForImageClassification,
         Data2VecVisionForSemanticSegmentation,
         Data2VecVisionModel,
     )
-    from transformers.models.data2vec.modeling_data2vec_vision import DATA2VEC_VISION_PRETRAINED_MODEL_ARCHIVE_LIST
+    from transformers.models.auto.modeling_auto import MODEL_MAPPING_NAMES
 
 
 if is_vision_available():
     from PIL import Image
 
-    from transformers import BeitFeatureExtractor
+    from transformers import BeitImageProcessor
 
 
 class Data2VecVisionModelTester:
@@ -59,7 +55,7 @@ class Data2VecVisionModelTester:
         is_training=True,
         use_labels=True,
         hidden_size=32,
-        num_hidden_layers=4,
+        num_hidden_layers=2,
         num_attention_heads=4,
         intermediate_size=37,
         hidden_act="gelu",
@@ -179,7 +175,7 @@ class Data2VecVisionModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.Te
     )
     pipeline_model_mapping = (
         {
-            "feature-extraction": Data2VecVisionModel,
+            "image-feature-extraction": Data2VecVisionModel,
             "image-classification": Data2VecVisionForImageClassification,
             "image-segmentation": Data2VecVisionForSemanticSegmentation,
         }
@@ -220,18 +216,6 @@ class Data2VecVisionModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.Te
             x = model.get_output_embeddings()
             self.assertTrue(x is None or isinstance(x, nn.Linear))
 
-    def test_forward_signature(self):
-        config, _ = self.model_tester.prepare_config_and_inputs_for_common()
-
-        for model_class in self.all_model_classes:
-            model = model_class(config)
-            signature = inspect.signature(model.forward)
-            # signature.parameters is an OrderedDict => so arg_names order is deterministic
-            arg_names = [*signature.parameters.keys()]
-
-            expected_arg_names = ["pixel_values"]
-            self.assertListEqual(arg_names[:1], expected_arg_names)
-
     def test_model(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
         self.model_tester.create_and_check_model(*config_and_inputs)
@@ -248,7 +232,7 @@ class Data2VecVisionModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.Te
         config.return_dict = True
 
         for model_class in self.all_model_classes:
-            if model_class in [*get_values(MODEL_MAPPING)]:
+            if model_class.__name__ in MODEL_MAPPING_NAMES.values():
                 continue
 
             model = model_class(config)
@@ -267,7 +251,7 @@ class Data2VecVisionModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.Te
         config.return_dict = True
 
         for model_class in self.all_model_classes:
-            if model_class in [*get_values(MODEL_MAPPING)] or not model_class.supports_gradient_checkpointing:
+            if model_class.__name__ in MODEL_MAPPING_NAMES.values() or not model_class.supports_gradient_checkpointing:
                 continue
             # TODO: remove the following 3 lines once we have a MODEL_FOR_SEMANTIC_SEGMENTATION_MAPPING
             # this can then be incorporated into _prepare_for_class in test_modeling_common.py
@@ -312,9 +296,9 @@ class Data2VecVisionModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.Te
 
     @slow
     def test_model_from_pretrained(self):
-        for model_name in DATA2VEC_VISION_PRETRAINED_MODEL_ARCHIVE_LIST[:1]:
-            model = Data2VecVisionModel.from_pretrained(model_name)
-            self.assertIsNotNone(model)
+        model_name = "facebook/data2vec-vision-base-ft1k"
+        model = Data2VecVisionModel.from_pretrained(model_name)
+        self.assertIsNotNone(model)
 
 
 # We will verify our results on an image of cute cats
@@ -327,11 +311,9 @@ def prepare_img():
 @require_vision
 class Data2VecVisionModelIntegrationTest(unittest.TestCase):
     @cached_property
-    def default_feature_extractor(self):
+    def default_image_processor(self):
         return (
-            BeitFeatureExtractor.from_pretrained("facebook/data2vec-vision-base-ft1k")
-            if is_vision_available()
-            else None
+            BeitImageProcessor.from_pretrained("facebook/data2vec-vision-base-ft1k") if is_vision_available() else None
         )
 
     @slow
@@ -340,9 +322,9 @@ class Data2VecVisionModelIntegrationTest(unittest.TestCase):
             torch_device
         )
 
-        feature_extractor = self.default_feature_extractor
+        image_processor = self.default_image_processor
         image = prepare_img()
-        inputs = feature_extractor(images=image, return_tensors="pt").to(torch_device)
+        inputs = image_processor(images=image, return_tensors="pt").to(torch_device)
 
         # forward pass
         with torch.no_grad():
