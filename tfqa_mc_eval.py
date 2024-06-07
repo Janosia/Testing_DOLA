@@ -218,7 +218,7 @@ if __name__ == "__main__":
     parser.add_argument("--model-name", type=str, default="huggyllama/llama-7b")
     parser.add_argument("--num-gpus", type=str, default="1")
     parser.add_argument("--max_gpu_memory", type=int, default=27)
-    parser.add_argument("--device", type=str, choices=["cuda", "cpu"], default="cuda")
+    parser.add_argument("--device", type=str, choices=["cuda", "cpu", "tpu"], default="cuda")
     parser.add_argument("--data-path", type=str, default="./tfqa")
     parser.add_argument("--output-path", type=str, default="./tfqa_result")
     # parallel mode (split the dataset into multiple parts, inference by separate processes)
