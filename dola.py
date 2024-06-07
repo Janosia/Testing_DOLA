@@ -6,7 +6,9 @@ import os
 import json
 
 import torch
+import torch_xla
 import torch.nn.functional as F
+import torch_xla.core.xla_model as xm
 from transformers import AutoTokenizer, AutoModelForCausalLM, LlamaTokenizer
 from transformers.generation.stopping_criteria import StoppingCriteriaList, QaStoppingCriteria
 
@@ -39,6 +41,8 @@ class DoLa:
                     })
         elif self.device == "cpu":
             kwargs = {}
+        elif self.device == "tpu":
+            kwargs = {}
         else:
             raise ValueError(f"Invalid device: {self.device}")
         
@@ -59,6 +63,8 @@ class DoLa:
 
         if self.device == "cuda" and self.num_gpus == 1:
             model.cuda()
+        elif self.device == "tpu":
+            model.to(xm.xla_device())
         
         return model, tokenizer
 
