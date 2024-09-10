@@ -1130,9 +1130,9 @@ class GemmaForCausalLM(GemmaPreTrainedModel):
             # loss_dict = {}
             print(f"Early exit layers: {early_exit_layers}")
             for i, early_exit_layer in enumerate(early_exit_layers):
-                print(f"Error occurred with the following inputs: input_ids={input_ids}, early_exit_layers={early_exit_layers}")
-
-                logits = self.lm_head(outputs.hidden_states[early_exit_layer])
+                # print(f"Processing with the following inputs: input_ids={input_ids}, early_exit_layers={early_exit_layers}")
+                print(f"output hidden state \n", outputs.output_hidden_states[early_exit_layer])
+                logits = self.lm_head(outputs.output_hidden_states[early_exit_layer])
                 logits_dict[early_exit_layer] = logits
             loss = None
             if labels is not None:
