@@ -160,6 +160,7 @@ class DoLa:
                     output_hidden_states=False,
                     early_exit_layers=[premature_layer, mature_layer],
                 )
+                print("\nAAAAAAAAAAAAAAA")
 
                 assert premature_layer is not None
                 base_logits = dict_outputs[premature_layer][0, prefix_ids.shape[-1] - 1: -1, :]
@@ -180,6 +181,8 @@ class DoLa:
                 picked_logits = []
                 result_dict = {}
                 premature_layers = []
+
+                print("\nBBBBBBBBBBBBBBBBBBBBBBBBB")
 
                 dict_outputs, outputs = self.model(
                     input_ids=input_ids,
