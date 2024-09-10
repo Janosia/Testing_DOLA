@@ -61,6 +61,9 @@ class DoLa:
         '''model = AutoModelForCausalLM.from_pretrained(model_name,
             low_cpu_mem_usage=True, **kwargs)'''
 
+        # Check the type of the loaded model
+        print(f"Model type: {type(model)}")
+
         if self.device == "cuda" and self.num_gpus == 1:
             model.cuda()
         elif self.device == "tpu":
