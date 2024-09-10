@@ -187,6 +187,9 @@ class DoLa:
                 print(type(candidate_premature_layers))
                 print("\nmature layer:", mature_layer)
                 print(type(mature_layer))
+                early_exit_layers = candidate_premature_layers + [mature_layer]
+                print(early_exit_layers)
+                print(type(early_exit_layers))
 
                 dict_outputs, outputs = self.model(
                     input_ids=input_ids,
