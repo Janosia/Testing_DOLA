@@ -1168,7 +1168,8 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
             inputs_embeds=inputs_embeds,
             use_cache=use_cache,
             output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
+            # output_hidden_states=output_hidden_states,
+            output_hidden_states=output_hidden_states or early_exit_layers is not None,
             return_dict=return_dict,
             cache_position=cache_position,
         )
