@@ -456,7 +456,8 @@ class GemmaForCausalLM(LlamaForCausalLM):
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
+        print(f"Calling model with early_exit_layers: {early_exit_layers}")
+        print(f"input_ids: {input_ids}, attention_mask: {attention_mask}, position_ids: {position_ids}")
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
         outputs = self.model(
             input_ids=input_ids,
@@ -471,11 +472,16 @@ class GemmaForCausalLM(LlamaForCausalLM):
             return_dict=return_dict,
             cache_position=cache_position,
         )
+        print(f"Model outputs: {outputs}")
+
 
         if early_exit_layers is not None:
             logits_dict = {}
             # loss_dict = {}
+            print(f"Early exit layers: {early_exit_layers}")
             for i, early_exit_layer in enumerate(early_exit_layers):
+                print(f"Error occurred with the following inputs: input_ids={input_ids}, early_exit_layers={early_exit_layers}")
+
                 logits = self.lm_head(outputs.hidden_states[early_exit_layer])
                 logits_dict[early_exit_layer] = logits
             loss = None
