@@ -183,6 +183,10 @@ class DoLa:
                 premature_layers = []
 
                 print("\nBBBBBBBBBBBBBBBBBBBBBBBBB")
+                print("\nCandidate premature layer:", candidate_premature_layers)
+                print(type(candidate_premature_layers))
+                print("\nmature layer:", mature_layer)
+                print(type(mature_layer))
 
                 dict_outputs, outputs = self.model(
                     input_ids=input_ids,
