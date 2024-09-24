@@ -71,7 +71,7 @@ class QaStoppingCriteria(StoppingCriteria):
                 self.lengths.append(len(token_ids_sequence))
             else:
                 print("DEBUG Token Id length not enough - ", token_ids_sequence)
-                flag++;
+                flag = flag + 1
             print("DEBUG flag value ", flag)
         
     @add_start_docstrings(STOPPING_CRITERIA_INPUTS_DOCSTRING)
