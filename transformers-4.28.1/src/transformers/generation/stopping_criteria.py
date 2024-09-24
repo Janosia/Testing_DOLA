@@ -61,9 +61,13 @@ class QaStoppingCriteria(StoppingCriteria):
     def __init__(self, list_token_ids_sequence: list = [[29984, 29901]]):
         self.token_ids_sequences = []
         self.lengths = []
+
         for token_ids_sequence in list_token_ids_sequence:
-            self.token_ids_sequences.append(torch.tensor(token_ids_sequence, dtype=torch.long))
-            self.lengths.append(len(token_ids_sequence))
+            print(token_ids_sequence)
+            print(len(token_ids_sequence))
+            if len(token_ids_sequence) > 0:
+                self.token_ids_sequences.append(torch.tensor(token_ids_sequence, dtype=torch.long))
+                self.lengths.append(len(token_ids_sequence))
         
     @add_start_docstrings(STOPPING_CRITERIA_INPUTS_DOCSTRING)
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
