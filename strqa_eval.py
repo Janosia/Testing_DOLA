@@ -266,6 +266,7 @@ if __name__ == "__main__":
     answers = []
     result_dict = {'is_correct': [], 'model_answer': [], 'model_completion': [], 'full_input_text': []}
     retry_times = args.retry
+    empty_list=0
     for sample in tqdm(list_data_dict):
         model_answer = None
         for i in range(retry_times):
@@ -278,8 +279,13 @@ if __name__ == "__main__":
                     model_completion = model_completion[:-length_to_remove]
             model_completion = model_completion.strip()
             if mode == "dola":
-                for k, v in c_dist.items():
-                    premature_layer_dist[k] += v
+                if c_dist is not None:
+                    for k, v in c_dist.items():
+                        premature_layer_dist[k] += v
+            
+                else:
+                    empty_list = empty_list + 1
+                    print("c_dist is empty here : ",empty_list)
             model_answer = clean_answer(model_completion, random_guess = (i == retry_times - 1))
             if model_answer is not None:
                 break
