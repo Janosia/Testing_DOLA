@@ -67,8 +67,8 @@ class QaStoppingCriteria(StoppingCriteria):
             print("DEBUG ", token_ids_sequence)
             print(len(token_ids_sequence))
             flag = 0;
-            total = total+1
-            
+            self.total = self.total+1
+
             if len(token_ids_sequence) > 0:
                 self.token_ids_sequences.append(torch.tensor(token_ids_sequence, dtype=torch.long))
                 self.lengths.append(len(token_ids_sequence))
@@ -76,7 +76,7 @@ class QaStoppingCriteria(StoppingCriteria):
                 print("DEBUG Token Id length not enough - ", token_ids_sequence)
                 flag = flag + 1
         
-        print("Total list_token_ids_sequence:", total)
+        print("Total list_token_ids_sequence:", self.total)
         print("DEBUG flag value ", flag)
 
         
