@@ -1660,21 +1660,22 @@ class GenerationMixin:
         requires_attention_mask = "encoder_outputs" not in model_kwargs
         
         kwargs_has_attention_mask = model_kwargs.get("attention_mask", None) is not None
-        
-        if model_kwargs.get("attention_mask", None) is None and requires_attention_mask and accepts_attention_mask:
-            model_kwargs["attention_mask"] = self._prepare_attention_mask_for_generation(
-                inputs_tensor, generation_config.pad_token_id, generation_config.eos_token_id
-         )
-
 
         # 3. Define model inputs
+
         inputs_tensor, model_input_name, model_kwargs = self._prepare_model_inputs(
             inputs, generation_config.bos_token_id, model_kwargs
         )
+
         batch_size = inputs_tensor.shape[0]
 
         device = inputs_tensor.device
         self._prepare_special_tokens(generation_config, kwargs_has_attention_mask, device=device)
+
+        # if model_kwargs.get("attention_mask", None) is None and requires_attention_mask and accepts_attention_mask:
+        #     model_kwargs["attention_mask"] = self._prepare_attention_mask_for_generation(
+        #         inputs_tensor, generation_config.pad_token_id, generation_config.eos_token_id
+        #  )
 
         # decoder-only models must use left-padding for batched generation.
         if not self.config.is_encoder_decoder and not is_torchdynamo_compiling():
@@ -1694,6 +1695,9 @@ class GenerationMixin:
         # 4. Define other model kwargs
         # decoder-only models with inputs_embeds forwarding must use caching (otherwise we can't detect whether we are
         # generating the first new token or not, and we only want to use the embeddings for the first new token)
+        model_kwargs["output_attentions"] = generation_config.output_attentions
+        model_kwargs["output_hidden_states"] = generation_config.output_hidden_states
+
         if not self.config.is_encoder_decoder and model_input_name == "inputs_embeds":
             model_kwargs["use_cache"] = True
         else:
@@ -1716,6 +1720,7 @@ class GenerationMixin:
                 batch_size=batch_size,
                 model_input_name=model_input_name,
                 model_kwargs=model_kwargs,
+                bos_token_id=generation_config.bos_token_id,
                 decoder_start_token_id=generation_config.decoder_start_token_id,
                 device=inputs_tensor.device,
             )
