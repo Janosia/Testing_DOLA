@@ -361,3 +361,11 @@ if __name__ == "__main__":
     output_file = args.output_path if args.shard_id is None else (args.output_path+"_"+str(args.shard_id)+".json")
     with open(output_file, 'w') as f:
         json.dump(result_dict, f)
+    
+    # Calculate and save the average of 'answers'
+    average_answer = float(sum(answers)) / len(answers)
+    print(average_answer)
+
+    # Save the average to a separate text file
+    with open('/content/average_answer.txt', 'w') as avg_file:
+        avg_file.write(str(average_answer))
