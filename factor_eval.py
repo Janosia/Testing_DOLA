@@ -247,6 +247,11 @@ if __name__ == "__main__":
         if total_tokens > 0:
             for l in candidate_premature_layers:
                 print('Premature layer {0} was used {1} times, {2}%'.format(l, premature_layer_dist[l], round(premature_layer_dist[l] / total_tokens * 100, 2)))
+    
+    # save total_correct_rate to the json 
+    total_correct_rate = float(sum(answers))/len(answers)
+    result_dict['total_correct_rate'] = total_correct_rate
+
     # save results to a json file
     model_tag = model_name.split('/')[-1] if model_name[-1] != '/' else model_name.split('/')[-2]
     output_file = args.output_path if args.shard_id is None else (args.output_path+"_"+str(args.shard_id)+".json")
