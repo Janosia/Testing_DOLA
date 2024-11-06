@@ -403,9 +403,9 @@ if __name__ == "__main__":
         result_dict[f'total_mc3_{index}'] /= len(result_dict['question'])
 
 
-        max_total_mc1 = max(max_total_mc1,result_dict['total_mc1' + index])
-        max_total_mc2 = max(max_total_mc2,result_dict['total_mc2' + index])
-        max_total_mc3 = max(max_total_mc3,result_dict['total_mc2' + index])
+        max_total_mc1 = max(max_total_mc1,result_dict[f'total_mc1_{index}'])
+        max_total_mc2 = max(max_total_mc2,result_dict[f'total_mc2_{index}'])
+        max_total_mc3 = max(max_total_mc3,result_dict[f'total_mc3_{index}'])
 
         result_dict['layers'].append(candidate_premature_layer_list)
 
