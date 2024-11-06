@@ -374,9 +374,13 @@ if __name__ == "__main__":
                 #     f' MC2: {result_dict["total_mc2"]/len(result_dict["question"])}'
                 #     f' MC3: {result_dict["total_mc3"]/len(result_dict["question"])}\n\n')
 
-                print(f'Avergaed MC1: {result_dict[f'total_mc1_{index}']/len(result_dict["question"])}'
-                    f' MC2: {result_dict[f'total_mc2_{index}']/len(result_dict["question"])}'
-                    f' MC3: {result_dict[f'total_mc3_{index}']/len(result_dict["question"])}\n\n')
+                # print(f'Avergaed MC1: {result_dict[f'total_mc1_{index}']/len(result_dict["question"])}'
+                #     f' MC2: {result_dict[f'total_mc2_{index}']/len(result_dict["question"])}'
+                #     f' MC3: {result_dict[f'total_mc3_{index}']/len(result_dict["question"])}\n\n')
+                
+                print(f"Averaged MC1: {result_dict[f'total_mc1_{index}'] / len(result_dict['question'])} "
+                    f"MC2: {result_dict[f'total_mc2_{index}'] / len(result_dict['question'])} "
+                    f"MC3: {result_dict[f'total_mc3_{index}'] / len(result_dict['question'])}\n\n")
 
 
         if mode == "dola" and args.debug:
