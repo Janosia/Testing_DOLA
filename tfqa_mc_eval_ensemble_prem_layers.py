@@ -286,7 +286,7 @@ if __name__ == "__main__":
 
     # create the potential list of layers
     rand_candidate_premature_layers = list_of_rand_candidate_premature_layers(7, 8, 1, 18)
-    print(result)
+    print(rand_candidate_premature_layers)
 
     max_total_mc1=0
     max_total_mc2=0
