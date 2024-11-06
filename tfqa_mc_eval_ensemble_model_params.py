@@ -268,6 +268,10 @@ if __name__ == "__main__":
     with open('params_gemma.json', 'r') as file:
         ensemble_parameters = json.load(file)
     
+    max_total_mc1=0
+    max_total_mc2=0
+    max_total_mc3=0
+    
     result_dict = {'question': [], 'model_scores': [], 'params':[]}
 
     for index, params in enumerate(ensemble_parameters):
@@ -277,7 +281,7 @@ if __name__ == "__main__":
         result_dict[f'total_mc1_{index}'] = 0
         result_dict[f'total_mc2_{index}'] = 0
         result_dict[f'total_mc3_{index}'] = 0
-        
+
         top_p_json = params['top_p']
         top_k_json = params['top_k']
         temperature_json = params['temperature']
