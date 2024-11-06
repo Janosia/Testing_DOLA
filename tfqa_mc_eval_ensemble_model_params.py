@@ -276,7 +276,7 @@ if __name__ == "__main__":
 
     for index, params in enumerate(ensemble_parameters):
 
-        print(f'Run number: {index} \n')
+        print(f'Run number: {index + 1} \n')
         # result_dict = defaultdict(int)
         result_dict[f'total_mc1_{index}'] = 0
         result_dict[f'total_mc2_{index}'] = 0
