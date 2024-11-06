@@ -294,7 +294,7 @@ if __name__ == "__main__":
 
     result_dict = {'question': [], 'model_scores': [], 'layers':[]}
 
-    for index, candidate_premature_layer_list in rand_candidate_premature_layers:
+    for index, candidate_premature_layer_list in enumerate(rand_candidate_premature_layers):
         print(f'Run number: {index + 1} \n')
         result_dict[f'total_mc1_{index}'] = 0
         result_dict[f'total_mc2_{index}'] = 0
