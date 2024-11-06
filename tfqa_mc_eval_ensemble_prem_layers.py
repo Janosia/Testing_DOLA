@@ -295,10 +295,10 @@ if __name__ == "__main__":
     result_dict = {'question': [], 'model_scores': [], 'layers':[]}
 
     for index, candidate_premature_layer_list in rand_candidate_premature_layers:
-        print(f'Run number: {index} \n')
-        # result_dict[f'total_mc1_{index}'] = 0
-        # result_dict[f'total_mc2_{index}'] = 0
-        # result_dict[f'total_mc3_{index}'] = 0
+        # print(f'Run number: {index} \n')
+        result_dict[f'total_mc1_{index}'] = 0
+        result_dict[f'total_mc2_{index}'] = 0
+        result_dict[f'total_mc3_{index}'] = 0
         result_dict = defaultdict(int)
         if len(early_exit_layers) == 1:
             print("MODE: naive decoding from the last layer", flush=True)

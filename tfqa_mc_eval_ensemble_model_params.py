@@ -19,7 +19,7 @@ import urllib.request
 import zipfile
 
 from dola import DoLa
-from collections import defaultdict
+# from collections import defaultdict
 
 transformers.logging.set_verbosity(40)
 
@@ -273,7 +273,11 @@ if __name__ == "__main__":
     for index, params in enumerate(ensemble_parameters):
 
         print(f'Run number: {index} \n')
-        result_dict = defaultdict(int)
+        # result_dict = defaultdict(int)
+        result_dict[f'total_mc1_{index}'] = 0
+        result_dict[f'total_mc2_{index}'] = 0
+        result_dict[f'total_mc3_{index}'] = 0
+        
         top_p_json = params['top_p']
         top_k_json = params['top_k']
         temperature_json = params['temperature']
