@@ -270,6 +270,8 @@ if __name__ == "__main__":
     result_dict = {'question': [], 'model_scores': [], 'params':[]}
 
     for index, params in enumerate(ensemble_parameters):
+
+        print(f'Run number: {index} \n')
         top_p_json = params['top_p']
         top_k_json = params['top_k']
         temperature_json = params['temperature']
