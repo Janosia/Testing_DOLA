@@ -285,7 +285,7 @@ if __name__ == "__main__":
     early_exit_layers = [int(x) for x in args.early_exit_layers.split(',')]
 
     # create the potential list of layers
-    rand_candidate_premature_layers = list_of_rand_candidate_premature_layers(10, 8, 1, 18)
+    rand_candidate_premature_layers = list_of_rand_candidate_premature_layers(7, 8, 1, 18)
     print(result)
 
     max_total_mc1=0
