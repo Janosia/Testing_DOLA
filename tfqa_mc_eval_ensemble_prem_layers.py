@@ -411,7 +411,7 @@ if __name__ == "__main__":
 
     # Print the final scores, separated by ', '
     # print(f'Final MC1/2/3: \n{result_dict["total_mc1"]}, {result_dict["total_mc2"]}, {result_dict["total_mc3"]}')
-    print(f'Final MC1/2/3: \n{result_dict['max_total_mc1']}, {result_dict['max_total_mc2']}, {result_dict['max_total_mc3']}')
+    print(f"Final MC1/2/3: \n{result_dict['max_total_mc1']}, {result_dict['max_total_mc2']}, {result_dict['max_total_mc3']}")
 
     # save results to a json file
     model_tag = model_name.split('/')[-1] if model_name[-1] != '/' else model_name.split('/')[-2]
