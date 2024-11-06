@@ -311,7 +311,7 @@ if __name__ == "__main__":
                 scores_true = []
                 scores_false = []
 
-                generate_kwargs = dict(max_new_tokens=args.max_new_tokens, top_p = top_p_json,top_k = top_k_json, temperature = temperature_json, , repetition_penalty=repetition_penalty_json, mode=mode, mature_layer=mature_layer, premature_layer=premature_layer, candidate_premature_layers=candidate_premature_layers, relative_top=args.relative_top, relative_top_value=args.relative_top_value, post_softmax=False)
+                generate_kwargs = dict(max_new_tokens=args.max_new_tokens, top_p = top_p_json,top_k = top_k_json, temperature = temperature_json , repetition_penalty=repetition_penalty_json, mode=mode, mature_layer=mature_layer, premature_layer=premature_layer, candidate_premature_layers=candidate_premature_layers, relative_top=args.relative_top, relative_top_value=args.relative_top_value, post_softmax=False)
 
                 for temp_ans in ref_true:
                     # append the current answer choice to the prompt
