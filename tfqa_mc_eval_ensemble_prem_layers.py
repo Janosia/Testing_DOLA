@@ -19,7 +19,7 @@ import urllib.request
 import zipfile
 
 from dola import DoLa
-from collections import defaultdict
+# from collections import defaultdict
 
 transformers.logging.set_verbosity(40)
 
@@ -285,7 +285,7 @@ if __name__ == "__main__":
     early_exit_layers = [int(x) for x in args.early_exit_layers.split(',')]
 
     # create the potential list of layers
-    rand_candidate_premature_layers = list_of_rand_candidate_premature_layers(7, 8, 1, 18)
+    rand_candidate_premature_layers = list_of_rand_candidate_premature_layers(6, 8, 1, 18)
     print(rand_candidate_premature_layers)
 
     max_total_mc1=0
@@ -299,7 +299,7 @@ if __name__ == "__main__":
         result_dict[f'total_mc1_{index}'] = 0
         result_dict[f'total_mc2_{index}'] = 0
         result_dict[f'total_mc3_{index}'] = 0
-        result_dict = defaultdict(int)
+        # result_dict = defaultdict(int)
         if len(early_exit_layers) == 1:
             print("MODE: naive decoding from the last layer", flush=True)
             mode = "baseline"
