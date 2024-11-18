@@ -263,7 +263,7 @@ class DoLa:
                 
 
                 # visualise layer wise logit output
-                visualize_layer_logits(input_text1, input_text2, candidate_premature_layers, dict_outputs, prefix_ids, mature_layer)
+                self.visualize_layer_logits(input_text1, input_text2, candidate_premature_layers, dict_outputs, prefix_ids, mature_layer)
 
                 base_logits = torch.zeros_like(dict_outputs[mature_layer][0, prefix_ids.shape[-1] - 1:-1])
                 for i, l in enumerate(premature_layers):
