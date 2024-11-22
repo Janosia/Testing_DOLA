@@ -42,8 +42,8 @@ teacher_model = DoLa(teacher_model_name, device=device, num_gpus=1)
 teacher_model.model.eval()  # Teacher is frozen during KD
 teacher_tokenizer = AutoTokenizer.from_pretrained(teacher_model_name)
 
-# Load student model
-student_model = AutoModelForCausalLM.from_pretrained(student_model_name)
+# Move the student model to the correct device
+student_model = AutoModelForCausalLM.from_pretrained(student_model_name).to(device)
 student_model.train()
 
 # Define parameters for DoLa (early exit layers)
@@ -59,9 +59,8 @@ optimizer = torch.optim.Adam(student_model.parameters(), lr=5e-5)
 
 for sample in samples:
     input_text = f"Question: {sample[0]}\nAnswer:"
-    input_ids = teacher_tokenizer(input_text, return_tensors="pt").input_ids
-    if input_ids.device == "cpu":
-        input_ids = input_ids.to(device)
+    input_ids = teacher_tokenizer(input_text, return_tensors="pt").input_ids.to(device)  # Ensure input_ids are on the correct device
+    
     student_logits = student_model(input_ids).logits.to(device) 
     print(f"Student logits shape: {student_logits.shape}")
     with torch.no_grad():
