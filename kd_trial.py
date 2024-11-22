@@ -5,14 +5,6 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from dola import DoLa
 import torch.nn as nn
 
-# Check for TPU or GPU usage
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"Using device: {device}")
-
-
-# If running on a TPU (in case you're using Colab or GCP)
-if 'COLAB_TPU_ADDR' in os.environ:
-    os.environ['PJRT_DEVICE'] = 'tpu'  # Set environment variable for TPU usage
 
 
 def distillation_loss(student_logits, teacher_logits, temperature=2.0):
@@ -71,10 +63,7 @@ for sample in samples:
     student_logits = student_logits.to(device)
     print(f"Student logits shape: {student_logits.shape}")
     with torch.no_grad():
-        # Set PJRT_DEVICE for TPU usage
-        if 'COLAB_TPU_ADDR' in os.environ:
-            os.environ['PJRT_DEVICE'] = 'tpu'  # Set the environment variable if you want to switch to TPU
-
+      
         teacher_logits = teacher_model.model(input_ids).logits
         
         print(f"Teacher logits shape: {teacher_logits.shape}")
