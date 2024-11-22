@@ -91,14 +91,14 @@ for epoch in range(epochs):
             teacher_logits = teacher_outputs  # Ensure teacher outputs are logits
             print(f"Teacher logits shape: {teacher_logits.shape}")
 
-            # Adjust teacher_logits to match the student logits' sequence length
-            if teacher_logits.shape[1] < student_logits.shape[1]:
-                # Padding: Extend teacher_logits to match student logits
-                padding = student_logits.shape[1] - teacher_logits.shape[1]
+            # Ensure teacher_logits and student_logits match in sequence length
+            if teacher_logits.shape[1] < input_ids.shape[1]:
+                # Padding teacher_logits to match student output length
+                padding = input_ids.shape[1] - teacher_logits.shape[1]
                 teacher_logits = torch.cat([teacher_logits, teacher_logits[:, -1:].repeat(1, padding)], dim=1)
-            elif teacher_logits.shape[1] > student_logits.shape[1]:
-                # Truncating: Cut teacher_logits to match student logits
-                teacher_logits = teacher_logits[:, :student_logits.shape[1]]
+            elif teacher_logits.shape[1] > input_ids.shape[1]:
+                # Truncating teacher_logits to match input sequence length
+                teacher_logits = teacher_logits[:, :input_ids.shape[1]]
             
             print(f"Adjusted teacher logits shape: {teacher_logits.shape}")
 
