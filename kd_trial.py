@@ -56,28 +56,16 @@ for epoch in range(epochs):
 
         # Tokenize input
         input_ids = teacher_tokenizer(input_text, return_tensors="pt").input_ids.to(device)
+        
         # Apply DoLa on the teacher model
         with torch.no_grad():
-            # Access the actual model inside the DoLa wrapper and call the generate method
-            # teacher_outputs = teacher_model.model.generate(  # Accessing the underlying model
-            #     input_ids=input_ids,  # Use tokenized input
-            #     max_new_tokens=50,
-            #     mode=mode,
-            #     premature_layer=early_exit_layers[0],
-            #     mature_layer=early_exit_layers[1],
-            # )
-            # Check if `generate` is being called with any additional arguments
-            teacher_outputs = teacher_model.model.generate(
-                input_ids,  # only pass the essential arguments
-                max_length=100,  # example valid argument
-                num_beams=5
-            )
-
-            teacher_logits = teacher_outputs.logits
-
+            # Access the actual model inside the DoLa wrapper
+            teacher_outputs = teacher_model.model(input_ids=input_ids)
+            teacher_logits = teacher_outputs[0]  # Get logits from the teacher model output
+            
         # Student model forward pass
         student_outputs = student_model(input_ids, labels=input_ids)
-        student_logits = student_outputs.logits
+        student_logits = student_outputs.logits  # Get logits from the student model
 
         # Compute KD loss
         loss = distillation_loss(student_logits, teacher_logits, temperature=temperature)
