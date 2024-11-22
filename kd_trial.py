@@ -98,8 +98,6 @@ for epoch in range(epochs):
         print(f"Adjusted teacher logits shape: {teacher_logits.shape}")
         # Compute KD loss
         loss = distillation_loss(student_logits, teacher_logits, temperature=temperature)
-        # device = "cuda" if torch.cuda.is_available() else "cpu"
-        # os.environ['PJRT_DEVICE'] = device  # Set PJRT_DEVICE to match the current device
         # Backpropagation
         optimizer.zero_grad()
         loss.backward()
