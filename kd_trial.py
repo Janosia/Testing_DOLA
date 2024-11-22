@@ -62,11 +62,11 @@ for sample in samples:
     input_ids = teacher_tokenizer(input_text, return_tensors="pt").input_ids
     if input_ids.device == "cpu":
         input_ids = input_ids.to(device)
-    student_logits = student_model(input_ids).logits
+    student_logits = student_model(input_ids).logits.to(device) 
     print(f"Student logits shape: {student_logits.shape}")
     with torch.no_grad():
       
-        teacher_logits = teacher_model.model(input_ids).logits
+        teacher_logits = teacher_model.model(input_ids).logits.to(device) 
         
         print(f"Teacher logits shape: {teacher_logits.shape}")
             
