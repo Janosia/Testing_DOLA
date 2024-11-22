@@ -64,7 +64,6 @@ samples = [
 temperature = 2.0
 optimizer = torch.optim.Adam(student_model.parameters(), lr=5e-5)
 epochs = 3
-
 # Training loop
 for epoch in range(epochs):
     total_loss = 0
@@ -79,16 +78,9 @@ for epoch in range(epochs):
 
         # Apply DoLa on the teacher model
         with torch.no_grad():
-            # Generate teacher's output (logits)
-            teacher_outputs = teacher_model.model.generate(
-                input_ids,  # Only pass the essential arguments
-                max_length=100,  # Example valid argument
-                num_beams=5
-            )
-            print(f"Teacher output shape: {teacher_outputs.shape}")  # Print shape of teacher output
-            
-            # Get teacher logits (ensure this is matching sequence length)
-            teacher_logits = teacher_outputs  # Ensure teacher outputs are logits
+            # Generate teacher's raw output logits
+            teacher_outputs = teacher_model.model(input_ids)
+            teacher_logits = teacher_outputs.logits
             print(f"Teacher logits shape: {teacher_logits.shape}")
 
             # Ensure teacher_logits and student_logits match in sequence length
@@ -99,7 +91,7 @@ for epoch in range(epochs):
             elif teacher_logits.shape[1] > input_ids.shape[1]:
                 # Truncating teacher_logits to match input sequence length
                 teacher_logits = teacher_logits[:, :input_ids.shape[1]]
-            
+
             print(f"Adjusted teacher logits shape: {teacher_logits.shape}")
 
         # Student model forward pass
