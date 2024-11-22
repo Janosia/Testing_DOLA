@@ -56,16 +56,17 @@ for epoch in range(epochs):
 
         # Tokenize input
         input_ids = teacher_tokenizer(input_text, return_tensors="pt").input_ids.to(device)
-
         # Apply DoLa on the teacher model
         with torch.no_grad():
-            teacher_outputs = teacher_model(
-                input_ids=input_ids,
+            # Access the actual model inside the DoLa wrapper and call the generate method
+            teacher_outputs = teacher_model.model.generate(  # Accessing the underlying model
+                input_ids=input_ids,  # Use tokenized input
+                max_new_tokens=50,
                 mode=mode,
                 premature_layer=early_exit_layers[0],
                 mature_layer=early_exit_layers[1],
             )
-            teacher_logits = teacher_outputs["logits"]
+            teacher_logits = teacher_outputs.logits
 
         # Student model forward pass
         student_outputs = student_model(input_ids, labels=input_ids)
