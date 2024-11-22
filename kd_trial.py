@@ -75,6 +75,7 @@ for epoch in range(epochs):
         # Tokenize input
         input_ids = teacher_tokenizer(input_text, return_tensors="pt").input_ids.to(device)
         print(f"Tokenized input_ids shape: {input_ids.shape}")
+        projection_layer = nn.Linear(teacher_logits.shape[-1], student_logits.shape[-1]).to(device)
 
         # Apply DoLa on the teacher model
         with torch.no_grad():
@@ -82,7 +83,12 @@ for epoch in range(epochs):
             teacher_outputs = teacher_model.model(input_ids)
             teacher_logits = teacher_outputs.logits
             print(f"Teacher logits shape: {teacher_logits.shape}")
-            teacher_logits = teacher_outputs.logits[:, :input_ids.shape[1], :] 
+            # ... (rest of the code)
+
+
+        teacher_logits = projection_layer(teacher_logits)
+
+            # teacher_logits = teacher_outputs.logits[:, :input_ids.shape[1], :] 
 
             # # Ensure teacher_logits and student_logits match in sequence length
             # if teacher_logits.shape[1] < input_ids.shape[1]:
@@ -93,7 +99,7 @@ for epoch in range(epochs):
             #     # Truncating teacher_logits to match input sequence length
             #     teacher_logits = teacher_logits[:, :input_ids.shape[1]]
 
-            print(f"Adjusted teacher logits shape: {teacher_logits.shape}")
+        print(f"Adjusted teacher logits shape: {teacher_logits.shape}")
 
         # Student model forward pass
         student_outputs = student_model(input_ids, labels=input_ids)
