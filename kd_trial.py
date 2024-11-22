@@ -1,19 +1,21 @@
+import os
 import torch
 import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from dola import DoLa
 
+# If running on a TPU (in case you're using Colab or GCP)
+if 'COLAB_TPU_ADDR' in os.environ:
+    os.environ['PJRT_DEVICE'] = 'tpu'  # Set environment variable for TPU usage
+
+# Device configuration: GPU/CPU, or TPU if running on Google Colab
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"Using device: {device}")
+
 def distillation_loss(student_logits, teacher_logits, temperature=2.0):
     """
     Compute the distillation loss (KL divergence) between student and teacher logits.
     """
-    # Ensure both logits are the same size (vocabulary alignment)
-    if student_logits.size(-1) != teacher_logits.size(-1):
-        # Adjust the size of the logits by truncating or padding (in practice, truncating may be preferred)
-        min_vocab_size = min(student_logits.size(-1), teacher_logits.size(-1))
-        student_logits = student_logits[:, :, :min_vocab_size]
-        teacher_logits = teacher_logits[:, :, :min_vocab_size]
-    
     student_probs = F.log_softmax(student_logits / temperature, dim=-1)
     teacher_probs = F.softmax(teacher_logits / temperature, dim=-1)
     return F.kl_div(student_probs, teacher_probs, reduction="batchmean") * (temperature ** 2)
@@ -28,12 +30,9 @@ def build_prompt(sample):
 teacher_model_name = "BEE-spoke-data/smol_llama-101M-GQA-python"
 student_model_name = "PY007/TinyLlama-1.1B-step-50K-105b"
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
 # Load teacher with DoLa
 teacher_model = DoLa(teacher_model_name, device=device, num_gpus=1)
-
-teacher_model.model.eval()   # Teacher is frozen during KD
+teacher_model.model.eval()  # Teacher is frozen during KD
 teacher_tokenizer = AutoTokenizer.from_pretrained(teacher_model_name)
 
 # Load student model
@@ -63,16 +62,22 @@ for epoch in range(epochs):
 
         # Tokenize input
         input_ids = teacher_tokenizer(input_text, return_tensors="pt").input_ids.to(device)
-        
+
         # Apply DoLa on the teacher model
         with torch.no_grad():
-            # Access the actual model inside the DoLa wrapper
-            teacher_outputs = teacher_model.model(input_ids=input_ids)
-            teacher_logits = teacher_outputs[0]  # Get logits from the teacher model output
-            
+            # Access the actual model inside the DoLa wrapper and call the generate method
+            teacher_outputs = teacher_model.model.generate(
+                input_ids,  # Only pass the essential arguments
+                max_length=100,  # Example valid argument
+                num_beams=5
+            )
+
+            # As teacher_outputs is just a tensor, no need to access .logits
+            teacher_logits = teacher_outputs  # Adjusted to the correct output type
+
         # Student model forward pass
         student_outputs = student_model(input_ids, labels=input_ids)
-        student_logits = student_outputs.logits  # Get logits from the student model
+        student_logits = student_outputs.logits
 
         # Compute KD loss
         loss = distillation_loss(student_logits, teacher_logits, temperature=temperature)
