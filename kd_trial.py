@@ -5,13 +5,15 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from dola import DoLa
 import torch.nn as nn
 
+# Check for TPU or GPU usage
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"Using device: {device}")
+
+
 # If running on a TPU (in case you're using Colab or GCP)
 if 'COLAB_TPU_ADDR' in os.environ:
     os.environ['PJRT_DEVICE'] = 'tpu'  # Set environment variable for TPU usage
 
-# Device configuration: GPU/CPU, or TPU if running on Google Colab
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"Using device: {device}")
 
 def distillation_loss(student_logits, teacher_logits, temperature=2.0):
     """
@@ -75,8 +77,8 @@ for sample in samples:
         # Project teacher logits to match the student model's vocabulary size
         # projection_layer = nn.Linear(teacher_logits.shape[-1], student_model.config.vocab_size).to(device)
         # teacher_logits = projection_layer(teacher_logits)
-        teacher_logits = teacher_logits[..., :student_logits.size(-1)]  # Adjust teacher logits
-
+        teacher_logits = teacher_logits[..., :student_logits.size(-1)].to(device)
+        
         print(f"Adjusted teacher logits shape: {teacher_logits.shape}")
 
 
