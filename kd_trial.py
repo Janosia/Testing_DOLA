@@ -68,8 +68,13 @@ for sample in samples:
     input_text = f"Question: {sample[0]}\nAnswer:"
     input_ids = teacher_tokenizer(input_text, return_tensors="pt").input_ids.to(device)
     student_logits = student_model(input_ids).logits
+    student_logits = student_logits.to(device)
     print(f"Student logits shape: {student_logits.shape}")
     with torch.no_grad():
+        # Set PJRT_DEVICE for TPU usage
+        if 'COLAB_TPU_ADDR' in os.environ:
+            os.environ['PJRT_DEVICE'] = 'tpu'  # Set the environment variable if you want to switch to TPU
+
         teacher_logits = teacher_model.model(input_ids).logits
         
         print(f"Teacher logits shape: {teacher_logits.shape}")
@@ -80,11 +85,9 @@ for sample in samples:
         teacher_logits = teacher_logits[..., :student_logits.size(-1)].to(device)
         
         print(f"Adjusted teacher logits shape: {teacher_logits.shape}")
+    print(f"Student logits shape: {student_logits.shape}, device: {student_logits.device}")
+    print(f"Teacher logits shape: {teacher_logits.shape}, device: {teacher_logits.device}")
 
-
-    
-    print(f"Student logits shape: {student_logits.shape}")
-    print(f"Adjusted teacher logits shape: {teacher_logits.shape}")
     loss = torch.nn.functional.mse_loss(student_logits, teacher_logits)
     optimizer.zero_grad()
     loss.backward()
