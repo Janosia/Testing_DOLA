@@ -37,12 +37,12 @@ teacher_model_name = "BEE-spoke-data/smol_llama-101M-GQA-python"
 student_model_name = "PY007/TinyLlama-1.1B-step-50K-105b"
 
 # Load teacher with DoLa
-teacher_model = DoLa(teacher_model_name, device=device, num_gpus=1)
+teacher_model = DoLa(teacher_model_name, num_gpus=1)
 teacher_model.model.eval()  # Teacher is frozen during KD
 teacher_tokenizer = AutoTokenizer.from_pretrained(teacher_model_name)
 
 # Load student model
-student_model = AutoModelForCausalLM.from_pretrained(student_model_name).to(device)
+student_model = AutoModelForCausalLM.from_pretrained(student_model_name)
 student_model.train()
 
 # Define parameters for DoLa (early exit layers)
@@ -58,9 +58,8 @@ optimizer = torch.optim.Adam(student_model.parameters(), lr=5e-5)
 
 for sample in samples:
     input_text = f"Question: {sample[0]}\nAnswer:"
-    input_ids = teacher_tokenizer(input_text, return_tensors="pt").input_ids.to(device)
+    input_ids = teacher_tokenizer(input_text, return_tensors="pt").input_ids
     student_logits = student_model(input_ids).logits
-    student_logits = student_logits.to(device)
     print(f"Student logits shape: {student_logits.shape}")
     with torch.no_grad():
       
@@ -71,7 +70,7 @@ for sample in samples:
         # Project teacher logits to match the student model's vocabulary size
         # projection_layer = nn.Linear(teacher_logits.shape[-1], student_model.config.vocab_size).to(device)
         # teacher_logits = projection_layer(teacher_logits)
-        teacher_logits = teacher_logits[..., :student_logits.size(-1)].to(device)
+        teacher_logits = teacher_logits[..., :student_logits.size(-1)]
         
         print(f"Adjusted teacher logits shape: {teacher_logits.shape}")
     print(f"Student logits shape: {student_logits.shape}, device: {student_logits.device}")
