@@ -15,10 +15,21 @@ print(f"Using device: {device}")
 def distillation_loss(student_logits, teacher_logits, temperature=2.0):
     """
     Compute the distillation loss (KL divergence) between student and teacher logits.
+    Ensures that the logits match in shape for KL divergence computation.
     """
-    student_probs = F.log_softmax(student_logits / temperature, dim=-1)
+    # Apply softmax on teacher's logits to get probabilities
     teacher_probs = F.softmax(teacher_logits / temperature, dim=-1)
-    return F.kl_div(student_probs, teacher_probs, reduction="batchmean") * (temperature ** 2)
+    print(f"Teacher probs shape: {teacher_probs.shape}")  # Print shape of teacher probs
+    
+    # Apply log_softmax on student's logits
+    student_probs = F.log_softmax(student_logits / temperature, dim=-1)
+    print(f"Student probs shape: {student_probs.shape}")  # Print shape of student probs
+    
+    # KL Divergence loss (average across the batch)
+    loss = F.kl_div(student_probs, teacher_probs, reduction="batchmean") * (temperature ** 2)
+    print(f"Loss value: {loss.item()}")  # Print the loss value
+    
+    return loss
 
 def build_prompt(sample):
     """
@@ -57,27 +68,33 @@ epochs = 3
 # Training loop
 for epoch in range(epochs):
     total_loss = 0
+    print(f"Epoch {epoch + 1}/{epochs}")
     for sample in samples:
         input_text = build_prompt(sample)
+        print(f"\nInput text: {input_text}")
 
         # Tokenize input
         input_ids = teacher_tokenizer(input_text, return_tensors="pt").input_ids.to(device)
+        print(f"Tokenized input_ids shape: {input_ids.shape}")
 
         # Apply DoLa on the teacher model
         with torch.no_grad():
-            # Access the actual model inside the DoLa wrapper and call the generate method
+            # Generate teacher's output (logits)
             teacher_outputs = teacher_model.model.generate(
                 input_ids,  # Only pass the essential arguments
                 max_length=100,  # Example valid argument
                 num_beams=5
             )
-
-            # As teacher_outputs is just a tensor, no need to access .logits
-            teacher_logits = teacher_outputs  # Adjusted to the correct output type
+            print(f"Teacher output shape: {teacher_outputs.shape}")  # Print shape of teacher output
+            
+            # Get teacher logits
+            teacher_logits = teacher_outputs  # Ensure teacher outputs are logits
+            print(f"Teacher logits shape: {teacher_logits.shape}")
 
         # Student model forward pass
         student_outputs = student_model(input_ids, labels=input_ids)
         student_logits = student_outputs.logits
+        print(f"Student logits shape: {student_logits.shape}")
 
         # Compute KD loss
         loss = distillation_loss(student_logits, teacher_logits, temperature=temperature)
@@ -89,6 +106,6 @@ for epoch in range(epochs):
 
         total_loss += loss.item()
 
-    print(f"Epoch {epoch + 1}/{epochs}: Total Loss = {total_loss:.4f}")
+    print(f"Total Loss for Epoch {epoch + 1}: {total_loss:.4f}")
 
 print("Training Complete.")
