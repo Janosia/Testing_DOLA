@@ -95,7 +95,7 @@ if __name__ == "__main__":
     else:
         print(f"File found at {fp}, proceeding with loading...")
 
-
+    list_data_dict = load_csv(fp)
     if args.debug:
         list_data_dict = list_data_dict[:10]
 
