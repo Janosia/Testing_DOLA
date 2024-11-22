@@ -65,7 +65,8 @@ optimizer = torch.optim.Adam(student_model.parameters(), lr=5e-5)
 for sample in samples:
     input_text = f"Question: {sample[0]}\nAnswer:"
     input_ids = teacher_tokenizer(input_text, return_tensors="pt").input_ids.to(device)
-
+    student_logits = student_model(input_ids).logits
+    print(f"Student logits shape: {student_logits.shape}")
     with torch.no_grad():
         teacher_logits = teacher_model.model(input_ids).logits
         
@@ -79,7 +80,7 @@ for sample in samples:
         print(f"Adjusted teacher logits shape: {teacher_logits.shape}")
 
 
-    student_logits = student_model(input_ids).logits
+    
     print(f"Student logits shape: {student_logits.shape}")
     print(f"Adjusted teacher logits shape: {teacher_logits.shape}")
     loss = torch.nn.functional.mse_loss(student_logits, teacher_logits)
