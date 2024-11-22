@@ -85,11 +85,11 @@ for epoch in range(epochs):
             teacher_logits = teacher_outputs.logits
             print(f"Teacher logits shape: {teacher_logits.shape}")
             
-            # Apply projection to teacher logits
-            projection_layer = nn.Linear(teacher_logits.shape[-1], student_model.config.hidden_size).to(device)
-
+            # Project teacher logits to match the student model's vocabulary size
+            projection_layer = nn.Linear(teacher_logits.shape[-1], student_model.config.vocab_size).to(device)
             teacher_logits = projection_layer(teacher_logits)
             print(f"Adjusted teacher logits shape: {teacher_logits.shape}")
+
 
         # Student model forward pass
         student_outputs = student_model(input_ids, labels=input_ids)
