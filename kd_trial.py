@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from dola import DoLa
 import torch.nn as nn
+
 # If running on a TPU (in case you're using Colab or GCP)
 if 'COLAB_TPU_ADDR' in os.environ:
     os.environ['PJRT_DEVICE'] = 'tpu'  # Set environment variable for TPU usage
@@ -64,6 +65,7 @@ samples = [
 temperature = 2.0
 optimizer = torch.optim.Adam(student_model.parameters(), lr=5e-5)
 epochs = 3
+
 # Training loop
 for epoch in range(epochs):
     total_loss = 0
@@ -75,31 +77,18 @@ for epoch in range(epochs):
         # Tokenize input
         input_ids = teacher_tokenizer(input_text, return_tensors="pt").input_ids.to(device)
         print(f"Tokenized input_ids shape: {input_ids.shape}")
-        projection_layer = nn.Linear(teacher_logits.shape[-1], student_logits.shape[-1]).to(device)
-        teacher_logits = []
+
         # Apply DoLa on the teacher model
         with torch.no_grad():
             # Generate teacher's raw output logits
             teacher_outputs = teacher_model.model(input_ids)
             teacher_logits = teacher_outputs.logits
             print(f"Teacher logits shape: {teacher_logits.shape}")
-            # ... (rest of the code)
-
-
-        teacher_logits = projection_layer(teacher_logits)
-
-            # teacher_logits = teacher_outputs.logits[:, :input_ids.shape[1], :] 
-
-            # # Ensure teacher_logits and student_logits match in sequence length
-            # if teacher_logits.shape[1] < input_ids.shape[1]:
-            #     # Padding teacher_logits to match student output length
-            #     padding = input_ids.shape[1] - teacher_logits.shape[1]
-            #     teacher_logits = torch.cat([teacher_logits, teacher_logits[:, -1:].repeat(1, padding)], dim=1)
-            # elif teacher_logits.shape[1] > input_ids.shape[1]:
-            #     # Truncating teacher_logits to match input sequence length
-            #     teacher_logits = teacher_logits[:, :input_ids.shape[1]]
-
-        print(f"Adjusted teacher logits shape: {teacher_logits.shape}")
+            
+            # Apply projection to teacher logits
+            projection_layer = nn.Linear(teacher_logits.shape[-1], student_model.config.n_embd).to(device)
+            teacher_logits = projection_layer(teacher_logits)
+            print(f"Adjusted teacher logits shape: {teacher_logits.shape}")
 
         # Student model forward pass
         student_outputs = student_model(input_ids, labels=input_ids)
