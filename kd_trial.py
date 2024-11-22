@@ -35,7 +35,8 @@ def build_prompt(sample):
 
 # Initialize teacher and student models
 teacher_model_name = "BEE-spoke-data/smol_llama-101M-GQA-python"
-student_model_name = "PY007/TinyLlama-1.1B-step-50K-105b"
+student_model_name = "BEE-spoke-data/smol_llama-101M-GQA-python"
+# student_model_name = "PY007/TinyLlama-1.1B-step-50K-105b"
 
 # Load teacher with DoLa
 teacher_model = DoLa(teacher_model_name, device=device, num_gpus=1)
