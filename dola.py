@@ -16,6 +16,8 @@ import argparse
 import warnings
 import pandas as pd
 import numpy as np
+from datetime import datetime
+import matplotlib.pyplot as plt
 
 class DoLa:
     def __init__(self, model_name, device, num_gpus, max_gpu_memory=27):
@@ -138,6 +140,35 @@ class DoLa:
         probs_thresh = torch.min(min_thresh, probs_thresh)
         probs_thresh = probs_thresh.unsqueeze(-1)
         return scores_normalized < probs_thresh
+    
+    def visualize_layer_logits(self, input_text1, input_text2, candidate_premature_layers, dict_outputs, prefix_ids, mature_layer):
+        # ... (existing code for processing input and getting dict_outputs)
+
+        # Get the logits from the mature layer and candidate premature layers
+        mature_layer_logits = dict_outputs[mature_layer][0, prefix_ids.shape[-1] - 1:-1, :]
+        premature_layer_logits = [dict_outputs[layer][0, prefix_ids.shape[-1] - 1:-1, :] for layer in candidate_premature_layers]
+
+        # Visualize the logits
+        plt.figure(figsize=(12, 6))
+        plt.plot(mature_layer_logits.cpu().numpy(), label='Mature Layer')
+        for i, layer_logits in enumerate(premature_layer_logits):
+            plt.plot(layer_logits.cpu().numpy(), label=f'Premature Layer {i+1}')
+        plt.xlabel('Token Index')
+        plt.ylabel('Logit Value')
+        plt.legend()
+        plt.title('Layer-wise Logit Comparison')
+        plt.show()
+
+        # Save the figure
+        output_dir = "logit_visualizations"
+        os.makedirs(output_dir, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{output_dir}/logits_comparison_{timestamp}.png"
+        plt.savefig(filename)
+        plt.close()  # Close the figure to avoid overlapping future plots
+
+        print(f"Graph saved at: {filename}")
+
 
     def lm_score(self, input_text1, input_text2, pmi=False, max_new_tokens=256, top_p=0.95, top_k=0, temperature=0.8, mature_layer=None, premature_layer=None, candidate_premature_layers=[], mode='baseline', verbose=True, remove_stop_words=False, relative_top=0.1, relative_top_value=-1000.0, post_softmax=True, **kwargs):
         with torch.no_grad():
@@ -163,7 +194,7 @@ class DoLa:
                     output_hidden_states=False,
                     early_exit_layers=[premature_layer, mature_layer],
                 )
-                print("\nAAAAAAAAAAAAAAA")
+                # print("\nAAAAAAAAAAAAAAA")
 
                 assert premature_layer is not None
                 base_logits = dict_outputs[premature_layer][0, prefix_ids.shape[-1] - 1: -1, :]
@@ -229,6 +260,10 @@ class DoLa:
                     premature_layer_dist[premature_layer] += 1
 
                     premature_layers.append(premature_layer)
+                
+
+                # visualise layer wise logit output
+                # self.visualize_layer_logits(input_text1, input_text2, candidate_premature_layers, dict_outputs, prefix_ids, mature_layer)
 
                 base_logits = torch.zeros_like(dict_outputs[mature_layer][0, prefix_ids.shape[-1] - 1:-1])
                 for i, l in enumerate(premature_layers):

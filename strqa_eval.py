@@ -266,6 +266,7 @@ if __name__ == "__main__":
     answers = []
     result_dict = {'is_correct': [], 'model_answer': [], 'model_completion': [], 'full_input_text': []}
     retry_times = args.retry
+    empty_list=0
     for sample in tqdm(list_data_dict):
         model_answer = None
         for i in range(retry_times):
@@ -278,8 +279,13 @@ if __name__ == "__main__":
                     model_completion = model_completion[:-length_to_remove]
             model_completion = model_completion.strip()
             if mode == "dola":
-                for k, v in c_dist.items():
-                    premature_layer_dist[k] += v
+                if c_dist is not None:
+                    for k, v in c_dist.items():
+                        premature_layer_dist[k] += v
+            
+                else:
+                    empty_list = empty_list + 1
+                    print("c_dist is empty here : ",empty_list)
             model_answer = clean_answer(model_completion, random_guess = (i == retry_times - 1))
             if model_answer is not None:
                 break
@@ -306,6 +312,11 @@ if __name__ == "__main__":
         if total_tokens > 0:
             for l in candidate_premature_layers:
                 print('Premature layer {0} was used {1} times, {2}%'.format(l, premature_layer_dist[l], round(premature_layer_dist[l] / total_tokens * 100, 2)))
+    
+    # save total_correct_rate to the json 
+    total_correct_rate = float(sum(answers))/len(answers)
+    result_dict['total_correct_rate'] = total_correct_rate
+    
     # save results to a json file
     model_tag = model_name.split('/')[-1] if model_name[-1] != '/' else model_name.split('/')[-2]
     output_file = args.output_path if args.shard_id is None else (args.output_path+"_"+str(args.shard_id)+".json")
