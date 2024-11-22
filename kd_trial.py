@@ -5,6 +5,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from dola import DoLa
 import torch.nn as nn
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def distillation_loss(student_logits, teacher_logits, temperature=2.0):
@@ -37,7 +38,7 @@ teacher_model_name = "BEE-spoke-data/smol_llama-101M-GQA-python"
 student_model_name = "PY007/TinyLlama-1.1B-step-50K-105b"
 
 # Load teacher with DoLa
-teacher_model = DoLa(teacher_model_name, num_gpus=1)
+teacher_model = DoLa(teacher_model_name, device=device, num_gpus=1)
 teacher_model.model.eval()  # Teacher is frozen during KD
 teacher_tokenizer = AutoTokenizer.from_pretrained(teacher_model_name)
 
