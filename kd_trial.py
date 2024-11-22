@@ -86,7 +86,8 @@ for epoch in range(epochs):
             print(f"Teacher logits shape: {teacher_logits.shape}")
             
             # Apply projection to teacher logits
-            projection_layer = nn.Linear(teacher_logits.shape[-1], student_model.config.n_embd).to(device)
+            projection_layer = nn.Linear(teacher_logits.shape[-1], student_model.config.hidden_size).to(device)
+
             teacher_logits = projection_layer(teacher_logits)
             print(f"Adjusted teacher logits shape: {teacher_logits.shape}")
 
@@ -94,7 +95,7 @@ for epoch in range(epochs):
         student_outputs = student_model(input_ids, labels=input_ids)
         student_logits = student_outputs.logits
         print(f"Student logits shape: {student_logits.shape}")
-
+        print(f"Adjusted teacher logits shape: {teacher_logits.shape}")
         # Compute KD loss
         loss = distillation_loss(student_logits, teacher_logits, temperature=temperature)
 
