@@ -4,6 +4,7 @@ import argparse
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
+import csv
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from dola import DoLa
 
@@ -39,17 +40,28 @@ def download_url(url, save_path):
         print("File downloaded successfully.")
     else:
         print(f"Failed to download file. Status code: {response.status_code}")
-
-
 def load_csv(file_path):
-    # Example function to load a CSV file into a dictionary format
-    # You should adapt this function based on your CSV format
     data = []
     with open(file_path, 'r') as f:
-        for line in f:
-            question, answer = line.strip().split(',')
-            data.append({"question": question, "answer": answer})
+        reader = csv.reader(f)
+        next(reader)  # Skip the header row
+        for row in reader:
+            if len(row) >= 4:  # Ensure there are enough columns
+                question = row[2]
+                answer = row[3]
+                data.append((question, answer))
     return data
+
+
+# def load_csv(file_path):
+#     # Example function to load a CSV file into a dictionary format
+#     # You should adapt this function based on your CSV format
+#     data = []
+#     with open(file_path, 'r') as f:
+#         for line in f:
+#             question, answer = line.strip().split(',')
+#             data.append({"question": question, "answer": answer})
+#     return data
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
