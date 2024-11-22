@@ -3,7 +3,7 @@ import torch
 import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from dola import DoLa
-
+import torch.nn as nn
 # If running on a TPU (in case you're using Colab or GCP)
 if 'COLAB_TPU_ADDR' in os.environ:
     os.environ['PJRT_DEVICE'] = 'tpu'  # Set environment variable for TPU usage
