@@ -18,8 +18,6 @@ def distillation_loss(student_logits, teacher_logits, temperature=2.0):
     Compute the distillation loss (KL divergence) between student and teacher logits.
     Ensures that the logits match in shape for KL divergence computation.
     """
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    os.environ['PJRT_DEVICE'] = device  # Set PJRT_DEVICE to match the current device
     # Apply softmax on teacher's logits to get probabilities
     teacher_probs = F.softmax(teacher_logits / temperature, dim=-1)
     print(f"Teacher probs shape: {teacher_probs.shape}")  # Print shape of teacher probs
@@ -100,8 +98,8 @@ for epoch in range(epochs):
         print(f"Adjusted teacher logits shape: {teacher_logits.shape}")
         # Compute KD loss
         loss = distillation_loss(student_logits, teacher_logits, temperature=temperature)
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        os.environ['PJRT_DEVICE'] = device  # Set PJRT_DEVICE to match the current device
+        # device = "cuda" if torch.cuda.is_available() else "cpu"
+        # os.environ['PJRT_DEVICE'] = device  # Set PJRT_DEVICE to match the current device
         # Backpropagation
         optimizer.zero_grad()
         loss.backward()
