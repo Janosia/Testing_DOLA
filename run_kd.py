@@ -20,11 +20,14 @@ def distillation_loss(student_logits, teacher_logits, temperature=2.0):
     teacher_probs = F.softmax(teacher_logits / temperature, dim=-1)
     return F.kl_div(student_probs, teacher_probs, reduction="batchmean")
 
-def build_prompt(sample):
-    # Define how you build prompts from your sample data
-    # Example: Concatenate the question with a prompt template.
-    return f"Question: {sample['question']}\nAnswer:"
+# def build_prompt(sample):
+#     # Define how you build prompts from your sample data
+#     # Example: Concatenate the question with a prompt template.
+#     return f"Question: {sample['question']}\nAnswer:"
 
+def build_prompt(sample):
+    # Assuming sample is a tuple where the first element is the question and the second is the answer
+    return f"Question: {sample[0]}\nAnswer:"
 
 def download_url(url, save_path):
     # Ensure the directory exists
