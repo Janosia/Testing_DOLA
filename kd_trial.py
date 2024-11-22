@@ -24,7 +24,8 @@ student_model_name = "PY007/TinyLlama-1.1B-step-50K-105b"
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 # Load teacher with DoLa
-teacher_model = DoLa(teacher_model_name, num_gpus= 1, device)
+teacher_model = DoLa(teacher_model_name, device=device, num_gpus=1)
+
 teacher_model.eval()  # Teacher is frozen during KD
 teacher_tokenizer = AutoTokenizer.from_pretrained(teacher_model_name)
 
