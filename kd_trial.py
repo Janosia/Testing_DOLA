@@ -59,13 +59,20 @@ for epoch in range(epochs):
         # Apply DoLa on the teacher model
         with torch.no_grad():
             # Access the actual model inside the DoLa wrapper and call the generate method
-            teacher_outputs = teacher_model.model.generate(  # Accessing the underlying model
-                input_ids=input_ids,  # Use tokenized input
-                max_new_tokens=50,
-                mode=mode,
-                premature_layer=early_exit_layers[0],
-                mature_layer=early_exit_layers[1],
+            # teacher_outputs = teacher_model.model.generate(  # Accessing the underlying model
+            #     input_ids=input_ids,  # Use tokenized input
+            #     max_new_tokens=50,
+            #     mode=mode,
+            #     premature_layer=early_exit_layers[0],
+            #     mature_layer=early_exit_layers[1],
+            # )
+            # Check if `generate` is being called with any additional arguments
+            teacher_outputs = teacher_model.model.generate(
+                input_ids,  # only pass the essential arguments
+                max_length=100,  # example valid argument
+                num_beams=5
             )
+
             teacher_logits = teacher_outputs.logits
 
         # Student model forward pass
