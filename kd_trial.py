@@ -7,6 +7,13 @@ def distillation_loss(student_logits, teacher_logits, temperature=2.0):
     """
     Compute the distillation loss (KL divergence) between student and teacher logits.
     """
+    # Ensure both logits are the same size (vocabulary alignment)
+    if student_logits.size(-1) != teacher_logits.size(-1):
+        # Adjust the size of the logits by truncating or padding (in practice, truncating may be preferred)
+        min_vocab_size = min(student_logits.size(-1), teacher_logits.size(-1))
+        student_logits = student_logits[:, :, :min_vocab_size]
+        teacher_logits = teacher_logits[:, :, :min_vocab_size]
+    
     student_probs = F.log_softmax(student_logits / temperature, dim=-1)
     teacher_probs = F.softmax(teacher_logits / temperature, dim=-1)
     return F.kl_div(student_probs, teacher_probs, reduction="batchmean") * (temperature ** 2)
