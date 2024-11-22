@@ -302,13 +302,23 @@ if __name__ == "__main__":
             args.repetition_penalty = 1.2
     answers = []
     result_dict = {'is_correct': [], 'model_answer': [], 'model_completion': [], 'full_input_text': []}
+
+    empty_list=0
+    
     for sample in tqdm(list_data_dict):
         input_text = build_prompt(sample['instruction'], N_SHOT, COT_FLAG, args.do_shuffle)
         generate_kwargs = dict(max_new_tokens=args.max_new_tokens, do_sample=args.do_sample, top_p=args.top_p, top_k=args.top_k, temperature=args.temperature, repetition_penalty=args.repetition_penalty, mode=mode, mature_layer=mature_layer, premature_layer=premature_layer, candidate_premature_layers=candidate_premature_layers, relative_top=args.relative_top)
         model_completion, c_dist = llm.generate(input_text, **generate_kwargs)
         if mode == "dola":
-            for k, v in c_dist.items():
-                premature_layer_dist[k] += v
+            if c_dist is not None:
+                for k, v in c_dist.items():
+                    premature_layer_dist[k] += v
+            
+            else:
+                empty_list = empty_list + 1
+                print("c_dist is empty here : ",empty_list)
+            # for k, v in c_dist.items():
+            #     premature_layer_dist[k] += v
         model_answer = clean_answer(model_completion)
         is_cor = is_correct(model_answer, sample['output'])
         answers.append(is_cor)
@@ -333,6 +343,11 @@ if __name__ == "__main__":
         if total_tokens > 0:
             for l in candidate_premature_layers:
                 print('Premature layer {0} was used {1} times, {2}%'.format(l, premature_layer_dist[l], round(premature_layer_dist[l] / total_tokens * 100, 2)))
+    
+    # save total_correct_rate to the json 
+    total_correct_rate = float(sum(answers))/len(answers)
+    result_dict['total_correct_rate'] = total_correct_rate
+    
     # save results to a json file
     model_tag = model_name.split('/')[-1] if model_name[-1] != '/' else model_name.split('/')[-2]
     output_file = args.output_path if args.shard_id is None else (args.output_path+"_"+str(args.shard_id)+".json")

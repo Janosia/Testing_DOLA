@@ -154,6 +154,7 @@ class GenerateDecoderOnlyOutput(ModelOutput):
     attentions: Optional[Tuple[Tuple[torch.FloatTensor]]] = None
     hidden_states: Optional[Tuple[Tuple[torch.FloatTensor]]] = None
     past_key_values: Optional[Tuple[Tuple[Tuple[torch.FloatTensor]]]] = None
+    premature_layer_dist: Optional[Dict[int, int]] = None
 
 
 @dataclass
@@ -1522,6 +1523,13 @@ class GenerationMixin:
         logits_processor: Optional[LogitsProcessorList] = None,
         stopping_criteria: Optional[StoppingCriteriaList] = None,
         prefix_allowed_tokens_fn: Optional[Callable[[int, torch.Tensor], List[int]]] = None,
+        dola_decoding: Optional[bool] = None,
+        mature_layer: Optional[int] = None,
+        base_layer: Optional[int] = None,
+        candidate_premature_layers: Optional[List[int]] = None,
+        relative_top: Optional[float] = 0.1,
+        contrastive_decoding: Optional[bool] = None,
+        student_model = None,
         synced_gpus: Optional[bool] = None,
         assistant_model: Optional["PreTrainedModel"] = None,
         streamer: Optional["BaseStreamer"] = None,
@@ -1628,21 +1636,47 @@ class GenerationMixin:
 
         tokenizer = kwargs.pop("tokenizer", None)
 
+        # logits_processor = logits_processor if logits_processor is not None else LogitsProcessorList()
+        # stopping_criteria = stopping_criteria if stopping_criteria is not None else StoppingCriteriaList()
+        
+        #  TRYING CHANGES 
+        #  2. Set generation parameters if not already defined
         logits_processor = logits_processor if logits_processor is not None else LogitsProcessorList()
         stopping_criteria = stopping_criteria if stopping_criteria is not None else StoppingCriteriaList()
 
+        if generation_config.pad_token_id is None and generation_config.eos_token_id is not None:
+            if model_kwargs.get("attention_mask", None) is None:
+                logger.warning(
+                    "The attention mask and the pad token id were not set. As a consequence, you may observe "
+                    "unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results."
+                )
+            eos_token_id = generation_config.eos_token_id
+            if isinstance(eos_token_id, list):
+                eos_token_id = eos_token_id[0]
+            logger.warning(f"Setting `pad_token_id` to `eos_token_id`:{eos_token_id} for open-end generation.")
+            generation_config.pad_token_id = eos_token_id
+
+
         accepts_attention_mask = "attention_mask" in set(inspect.signature(self.forward).parameters.keys())
         requires_attention_mask = "encoder_outputs" not in model_kwargs
+        
         kwargs_has_attention_mask = model_kwargs.get("attention_mask", None) is not None
 
         # 3. Define model inputs
+
         inputs_tensor, model_input_name, model_kwargs = self._prepare_model_inputs(
             inputs, generation_config.bos_token_id, model_kwargs
         )
+
         batch_size = inputs_tensor.shape[0]
 
         device = inputs_tensor.device
         self._prepare_special_tokens(generation_config, kwargs_has_attention_mask, device=device)
+
+        # if model_kwargs.get("attention_mask", None) is None and requires_attention_mask and accepts_attention_mask:
+        #     model_kwargs["attention_mask"] = self._prepare_attention_mask_for_generation(
+        #         inputs_tensor, generation_config.pad_token_id, generation_config.eos_token_id
+        #  )
 
         # decoder-only models must use left-padding for batched generation.
         if not self.config.is_encoder_decoder and not is_torchdynamo_compiling():
@@ -1662,6 +1696,9 @@ class GenerationMixin:
         # 4. Define other model kwargs
         # decoder-only models with inputs_embeds forwarding must use caching (otherwise we can't detect whether we are
         # generating the first new token or not, and we only want to use the embeddings for the first new token)
+        model_kwargs["output_attentions"] = generation_config.output_attentions
+        model_kwargs["output_hidden_states"] = generation_config.output_hidden_states
+
         if not self.config.is_encoder_decoder and model_input_name == "inputs_embeds":
             model_kwargs["use_cache"] = True
         else:
@@ -1684,6 +1721,7 @@ class GenerationMixin:
                 batch_size=batch_size,
                 model_input_name=model_input_name,
                 model_kwargs=model_kwargs,
+                bos_token_id=generation_config.bos_token_id,
                 decoder_start_token_id=generation_config.decoder_start_token_id,
                 device=inputs_tensor.device,
             )
