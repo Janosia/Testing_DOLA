@@ -142,7 +142,7 @@ if __name__ == "__main__":
         
         # Generate output using the student model
         generate_kwargs = dict(max_new_tokens=args.max_new_tokens, top_p=args.top_p, top_k=args.top_k, temperature=args.temperature, repetition_penalty=args.repetition_penalty, mode=mode, mature_layer=mature_layer, premature_layer=premature_layer, candidate_premature_layers=candidate_premature_layers)
-        student_model_output = student_model.generate(input_text, **generate_kwargs)
+        student_model_output = student_model.generate(input_text, **generate_kwargs, mode=mode)
         
         # Obtain teacher model's output
         teacher_input_ids = teacher_tokenizer(input_text, return_tensors="pt").input_ids.to(device)
