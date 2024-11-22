@@ -20,11 +20,6 @@ def distillation_loss(student_logits, teacher_logits, temperature=2.0):
     teacher_probs = F.softmax(teacher_logits / temperature, dim=-1)
     return F.kl_div(student_probs, teacher_probs, reduction="batchmean")
 
-# def build_prompt(sample):
-#     # Define how you build prompts from your sample data
-#     # Example: Concatenate the question with a prompt template.
-#     return f"Question: {sample['question']}\nAnswer:"
-
 def build_prompt(sample):
     # Assuming sample is a tuple where the first element is the question and the second is the answer
     return f"Question: {sample[0]}\nAnswer:"
@@ -34,7 +29,6 @@ def download_url(url, save_path):
     os.makedirs(save_path, exist_ok=True)
     print(f"Downloading file from {url}...")
     # Add your file download logic here (e.g., using requests or urllib)
-    # Example: using requests
     import requests
     response = requests.get(url)
     if response.status_code == 200:
@@ -43,6 +37,7 @@ def download_url(url, save_path):
         print("File downloaded successfully.")
     else:
         print(f"Failed to download file. Status code: {response.status_code}")
+
 def load_csv(file_path):
     data = []
     with open(file_path, 'r') as f:
@@ -54,17 +49,6 @@ def load_csv(file_path):
                 answer = row[3]
                 data.append((question, answer))
     return data
-
-
-# def load_csv(file_path):
-#     # Example function to load a CSV file into a dictionary format
-#     # You should adapt this function based on your CSV format
-#     data = []
-#     with open(file_path, 'r') as f:
-#         for line in f:
-#             question, answer = line.strip().split(',')
-#             data.append({"question": question, "answer": answer})
-#     return data
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -125,34 +109,71 @@ if __name__ == "__main__":
     answers = []
     result_dict = {'question': [], 'model_completion': []}
     
+    # Mode logic for early exit layers
+    if len(early_exit_layers) == 1:
+        print("MODE: naive decoding from the last layer", flush=True)
+        mode = "baseline"
+        mature_layer = None
+        premature_layer = None
+        candidate_premature_layers = None
+        if args.repetition_penalty is None:
+            args.repetition_penalty = 1.0
+    elif len(early_exit_layers) == 2:
+        print(f"MODE: DoLa-static decoding with mature layer: {early_exit_layers[1]} and premature layer: {early_exit_layers[0]}")
+        mode = "early_exit_contrastive"
+        mature_layer = early_exit_layers[1]
+        premature_layer = early_exit_layers[0]
+        candidate_premature_layers = None
+        if args.repetition_penalty is None:
+            args.repetition_penalty = 1.2
+    else:
+        print(f"MODE: DoLa decoding with mature layer: {early_exit_layers[-1]} and premature layers: {early_exit_layers[:-1]}")
+        mode = "dola"
+        mature_layer = early_exit_layers[-1]
+        premature_layer = None
+        candidate_premature_layers = early_exit_layers[:-1]
+        premature_layer_dist = {l:0 for l in candidate_premature_layers}
+        if args.repetition_penalty is None:
+            args.repetition_penalty = 1.2
+
+    # Generate completions and compute KD if enabled
     for sample in tqdm(list_data_dict):
         input_text = build_prompt(sample)
         
         # Generate output using the student model
-        generate_kwargs = dict(max_new_tokens=args.max_new_tokens, top_p=args.top_p, top_k=args.top_k, temperature=args.temperature, repetition_penalty=args.repetition_penalty)
-        student_model_completion = student_model.generate(input_text, **generate_kwargs)
-
-        # Use the teacher model to guide generation (if KD is enabled)
+        generate_kwargs = dict(max_new_tokens=args.max_new_tokens, top_p=args.top_p, top_k=args.top_k, temperature=args.temperature, repetition_penalty=args.repetition_penalty, mode=mode, mature_layer=mature_layer, premature_layer=premature_layer, candidate_premature_layers=candidate_premature_layers)
+        student_model_output = student_model.generate(input_text, **generate_kwargs)
+        
+        # Obtain teacher model's output
+        teacher_input_ids = teacher_tokenizer(input_text, return_tensors="pt").input_ids.to(device)
+        with torch.no_grad():
+            teacher_logits = teacher_model(teacher_input_ids).logits[:, -1, :]
+        
+        # Compute distillation loss if KD is enabled
         if args.use_knowledge_distillation:
-            # Prepare the input for the teacher model
-            teacher_input = teacher_tokenizer.encode(input_text, return_tensors="pt").to(device)
-            with torch.no_grad():
-                teacher_logits = teacher_model(teacher_input).logits
+            distill_loss = distillation_loss(student_model_output.logits, teacher_logits)
+            print(f"Distillation loss for this sample: {distill_loss.item()}")
 
-            # Compute distillation loss
-            student_input = teacher_tokenizer.encode(input_text, return_tensors="pt").to(device)
-            student_logits = student_model(student_input).logits
-            loss = distillation_loss(student_logits, teacher_logits)
-            
-            print(f"Distillation Loss: {loss.item()}")
-
+        # Stop word removal
+        for stop_word in stop_word_list:
+            length_to_remove = len(stop_word)
+            if student_model_output[-length_to_remove:] == stop_word:
+                student_model_output = student_model_output[:-length_to_remove]
+        student_model_output = student_model_output.strip()
+        
+        # If using DoLa mode, track premature layer distribution
+        if mode == "dola":
+            for k, v in student_model_output.layer_dist.items():
+                premature_layer_dist[k] += v
+        
         # Store the result
-        result_dict['model_completion'].append(student_model_completion)
+        result_dict['model_completion'].append(student_model_output)
         result_dict['question'].append(sample)
 
-        print(f'Question: {sample}\nModel Completion: {student_model_completion}\n')
+        print(f'Question: {sample}\nModel Completion: {student_model_output}\n')
 
     # Save results to a JSON file
-    output_file = args.output_path if args.shard_id is None else (args.output_path + "_" + str(args.shard_id) + ".jsonl")
+    output_file = args.output_path if args.output_path else "./output_results.json"
     with open(output_file, 'w') as f:
         json.dump(result_dict, f)
+    print(f"Results saved to {output_file}")
