@@ -87,9 +87,20 @@ for epoch in range(epochs):
             )
             print(f"Teacher output shape: {teacher_outputs.shape}")  # Print shape of teacher output
             
-            # Get teacher logits
+            # Get teacher logits (ensure this is matching sequence length)
             teacher_logits = teacher_outputs  # Ensure teacher outputs are logits
             print(f"Teacher logits shape: {teacher_logits.shape}")
+
+            # Adjust teacher_logits to match the student logits' sequence length
+            if teacher_logits.shape[1] < student_logits.shape[1]:
+                # Padding: Extend teacher_logits to match student logits
+                padding = student_logits.shape[1] - teacher_logits.shape[1]
+                teacher_logits = torch.cat([teacher_logits, teacher_logits[:, -1:].repeat(1, padding)], dim=1)
+            elif teacher_logits.shape[1] > student_logits.shape[1]:
+                # Truncating: Cut teacher_logits to match student logits
+                teacher_logits = teacher_logits[:, :student_logits.shape[1]]
+            
+            print(f"Adjusted teacher logits shape: {teacher_logits.shape}")
 
         # Student model forward pass
         student_outputs = student_model(input_ids, labels=input_ids)
