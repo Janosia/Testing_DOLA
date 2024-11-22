@@ -72,12 +72,16 @@ for sample in samples:
         print(f"Teacher logits shape: {teacher_logits.shape}")
             
         # Project teacher logits to match the student model's vocabulary size
-        projection_layer = nn.Linear(teacher_logits.shape[-1], student_model.config.vocab_size).to(device)
-        teacher_logits = projection_layer(teacher_logits)
+        # projection_layer = nn.Linear(teacher_logits.shape[-1], student_model.config.vocab_size).to(device)
+        # teacher_logits = projection_layer(teacher_logits)
+        teacher_logits = teacher_logits[..., :student_logits.size(-1)]  # Adjust teacher logits
+
         print(f"Adjusted teacher logits shape: {teacher_logits.shape}")
 
 
     student_logits = student_model(input_ids).logits
+    print(f"Student logits shape: {student_logits.shape}")
+    print(f"Adjusted teacher logits shape: {teacher_logits.shape}")
     loss = torch.nn.functional.mse_loss(student_logits, teacher_logits)
     optimizer.zero_grad()
     loss.backward()
