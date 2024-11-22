@@ -76,7 +76,7 @@ for epoch in range(epochs):
         input_ids = teacher_tokenizer(input_text, return_tensors="pt").input_ids.to(device)
         print(f"Tokenized input_ids shape: {input_ids.shape}")
         projection_layer = nn.Linear(teacher_logits.shape[-1], student_logits.shape[-1]).to(device)
-
+        teacher_logits = []
         # Apply DoLa on the teacher model
         with torch.no_grad():
             # Generate teacher's raw output logits
