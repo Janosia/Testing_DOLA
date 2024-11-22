@@ -73,9 +73,9 @@ for sample in samples:
         # Project teacher logits to match the student model's vocabulary size
         # projection_layer = nn.Linear(teacher_logits.shape[-1], student_model.config.vocab_size).to(device)
         # teacher_logits = projection_layer(teacher_logits)
-        teacher_logits = teacher_logits[..., :student_logits.size(-1)]
+        # teacher_logits = teacher_logits[..., :student_logits.size(-1)]
         
-        print(f"Adjusted teacher logits shape: {teacher_logits.shape}")
+        # print(f"Adjusted teacher logits shape: {teacher_logits.shape}")
     print(f"Student logits shape: {student_logits.shape}, device: {student_logits.device}")
     print(f"Teacher logits shape: {teacher_logits.shape}, device: {teacher_logits.device}")
 
