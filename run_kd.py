@@ -24,12 +24,22 @@ def build_prompt(sample):
     # Example: Concatenate the question with a prompt template.
     return f"Question: {sample['question']}\nAnswer:"
 
+
 def download_url(url, save_path):
-    # This function downloads the file from the URL
     # Ensure the directory exists
     os.makedirs(save_path, exist_ok=True)
-    # Add your file download logic here (using requests or another method)
-    pass
+    print(f"Downloading file from {url}...")
+    # Add your file download logic here (e.g., using requests or urllib)
+    # Example: using requests
+    import requests
+    response = requests.get(url)
+    if response.status_code == 200:
+        with open(os.path.join(save_path, 'TruthfulQA.csv'), 'wb') as f:
+            f.write(response.content)
+        print("File downloaded successfully.")
+    else:
+        print(f"Failed to download file. Status code: {response.status_code}")
+
 
 def load_csv(file_path):
     # Example function to load a CSV file into a dictionary format
@@ -80,8 +90,11 @@ if __name__ == "__main__":
     # Get test file
     fp = os.path.join(args.data_path, 'TruthfulQA.csv')
     if not os.path.exists(fp):
+        print(f"File not found at {fp}, attempting to download...")
         download_url('https://raw.githubusercontent.com/sylinrl/TruthfulQA/main/TruthfulQA.csv', args.data_path)
-    list_data_dict = load_csv(fp)
+    else:
+        print(f"File found at {fp}, proceeding with loading...")
+
 
     if args.debug:
         list_data_dict = list_data_dict[:10]
