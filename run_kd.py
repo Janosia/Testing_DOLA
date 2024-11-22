@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from my_project import DoLa  # Import your student model here (make sure to adjust the import path)
+from dola import DoLa
 
 def distillation_loss(student_logits, teacher_logits, temperature=2.0):
     """
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     student_model = DoLa(model_name, device, num_gpus=args.num_gpus, max_gpu_memory=args.max_gpu_memory)
 
     # Load the teacher model for KD
-    teacher_model_name = "gpt2"  # Use a larger teacher model like GPT-3 if possible
+    teacher_model_name = "PY007/TinyLlama-1.1B-step-50K-105b"  # Use a larger teacher model like GPT-3 if possible
     teacher_model = AutoModelForCausalLM.from_pretrained(teacher_model_name).to(device)
     teacher_tokenizer = AutoTokenizer.from_pretrained(teacher_model_name)
     teacher_model.eval()
