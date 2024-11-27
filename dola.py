@@ -275,7 +275,8 @@ class DoLa:
                 # diff_logits = (final_logits**2 - base_logits**2)
                 # diff_logits = (final_logits**2 - base_logits**2) + 1e-6
                 # diff_logits = torch.clamp(diff_logits, min=-1e6, max=1e6)
-                diff_logits = torch.abs(final_logits - base_logits)
+                # diff_logits = torch.abs(final_logits - base_logits)
+                diff_logits = torch.abs(final_logits**2 - base_logits**2)
 
                 if post_softmax:
                     diff_logits = diff_logits.log_softmax(dim=-1)
