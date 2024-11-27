@@ -274,13 +274,14 @@ class DoLa:
                 # diff_logits = torch.abs(final_logits**2 - base_logits**2)
                 # Weighted combination of JS divergence and absolute difference
                 abs_diff_logits = torch.abs(final_logits - base_logits)
-                js_divs_expanded = js_divs.unsqueeze(-1).expand(-1, abs_diff_logits.shape[-1])
 
-                # Now js_divs_expanded has shape (8, num_tokens), which matches the number of tokens in abs_diff_logits
+                # Expand js_divs to match the shape of abs_diff_logits
+                js_divs_expanded = js_divs.unsqueeze(-1).unsqueeze(-1).expand(-1, abs_diff_logits.shape[0], abs_diff_logits.shape[1])
 
-                # Compute the weighted sum of the logits difference
+                # Now js_divs_expanded has shape (num_premature_layers, batch_size, num_tokens)
+                # You can combine js_divs_expanded with abs_diff_logits
+
                 js_weight = 0.7  # Adjust the weight as needed
-
                 diff_logits = js_weight * js_divs_expanded + (1 - js_weight) * abs_diff_logits
 
                 if post_softmax:
