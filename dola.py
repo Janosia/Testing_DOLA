@@ -271,7 +271,8 @@ class DoLa:
                 final_logits = dict_outputs[mature_layer][0, prefix_ids.shape[-1] - 1:-1]
                 final_logits = final_logits.log_softmax(dim=-1)
                 base_logits = base_logits.log_softmax(dim=-1)
-                diff_logits = final_logits - base_logits
+                # diff_logits = final_logits - base_logits
+                diff_logits = (final_logits**2 - base_logits**2)
                 if post_softmax:
                     diff_logits = diff_logits.log_softmax(dim=-1)
 
