@@ -271,12 +271,12 @@ class DoLa:
                 final_logits = dict_outputs[mature_layer][0, prefix_ids.shape[-1] - 1:-1]
                 final_logits = final_logits.log_softmax(dim=-1)
                 base_logits = base_logits.log_softmax(dim=-1)
-                # diff_logits = final_logits - base_logits
-                # diff_logits = (final_logits**2 - base_logits**2)
-                # diff_logits = (final_logits**2 - base_logits**2) + 1e-6
-                # diff_logits = torch.clamp(diff_logits, min=-1e6, max=1e6)
-                # diff_logits = torch.abs(final_logits - base_logits)
-                diff_logits = torch.abs(final_logits**2 - base_logits**2)
+                # diff_logits = torch.abs(final_logits**2 - base_logits**2)
+                # Weighted combination of JS divergence and absolute difference
+                
+                js_weight = 0.7  # Adjust this weight based on experimentation
+                abs_diff_logits = torch.abs(final_logits - base_logits)
+                diff_logits = js_weight * js_divs + (1 - js_weight) * abs_diff_logits
 
                 if post_softmax:
                     diff_logits = diff_logits.log_softmax(dim=-1)
