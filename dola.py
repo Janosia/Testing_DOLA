@@ -255,7 +255,8 @@ class DoLa:
                     js_divs = 0.5 * (kl1 + kl2)  # shape: (num_premature_layers, batch_size)
 
                     # 6. Reduce the batchmean
-                    js_divs = js_divs.mean(-1)  # shape: (num_premature_layers,)
+                    # js_divs = js_divs.mean(-1)  # shape: (num_premature_layers,)
+                    js_divs = torch.median(js_divs, dim=-1).values  # shape: (num_premature_layers,)
                     premature_layer = candidate_premature_layers[int(js_divs.argmax().cpu().item())]
                     premature_layer_dist[premature_layer] += 1
 
@@ -271,19 +272,8 @@ class DoLa:
                 final_logits = dict_outputs[mature_layer][0, prefix_ids.shape[-1] - 1:-1]
                 final_logits = final_logits.log_softmax(dim=-1)
                 base_logits = base_logits.log_softmax(dim=-1)
-                # diff_logits = torch.abs(final_logits**2 - base_logits**2)
-                # Weighted combination of JS divergence and absolute difference
-                abs_diff_logits = torch.abs(final_logits - base_logits)
-
-                # Expand js_divs to match the shape of abs_diff_logits
-                js_divs_expanded = js_divs.unsqueeze(-1).unsqueeze(-1).expand(-1, abs_diff_logits.shape[0], abs_diff_logits.shape[1])
-
-                # Now js_divs_expanded has shape (num_premature_layers, batch_size, num_tokens)
-                # You can combine js_divs_expanded with abs_diff_logits
-
-                js_weight = 0.7  # Adjust the weight as needed
-                diff_logits = js_weight * js_divs_expanded + (1 - js_weight) * abs_diff_logits
-
+                diff_logits = final_logits - base_logits
+                
                 if post_softmax:
                     diff_logits = diff_logits.log_softmax(dim=-1)
 
