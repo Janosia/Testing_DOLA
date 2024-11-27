@@ -273,6 +273,7 @@ class DoLa:
                 base_logits = base_logits.log_softmax(dim=-1)
                 # diff_logits = final_logits - base_logits
                 diff_logits = (final_logits**2 - base_logits**2)
+                diff_logits = (final_logits**2 - base_logits**2) + 1e-6
                 if post_softmax:
                     diff_logits = diff_logits.log_softmax(dim=-1)
 
