@@ -245,8 +245,11 @@ class DoLa:
                     early_exit_layers=candidate_premature_layers + [mature_layer],
                 )
 
-                print(f"dict_outputs:\n{dict_outputs}\n dict_outputs shape:{dict_outputs.shape}\n")
-                print(f"outputs:\n{outputs}\n outputs shape:{outputs.shape}\n")
+                print(f"dict_outputs:\n{dict_outputs}\n")
+                for Layer, Logits in dict_outputs.items():
+                    print(f"Layer:shape:Logits:: {Layer}: {Logits.shape} : {Logits}")
+
+                print(f"outputs:\n{outputs}\n outputs shape:{outputs['logits'].shape}\n")
                 
                 print(f"\n ENTERING JSD ITERATION\n")
                 for seq_i in range(prefix_ids.shape[-1] - 1, input_ids.shape[-1] - 1):
