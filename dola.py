@@ -263,7 +263,7 @@ class DoLa:
                     softmax_premature_layers = F.softmax(stacked_premature_layers, dim=-1)  # shape: (num_premature_layers, batch_size, num_features)
 
                     print(f"\nsoftmax_mature_layer: {softmax_mature_layer} \nsoftmax_mature_layer: {softmax_mature_layer.shape}")
-                    print(f"\nsoftmax_premature_layer: {softmax_premature_layer} \nsoftmax_premature_layer: {softmax_premature_layer.shape}")
+                    print(f"\nsoftmax_premature_layer: {softmax_premature_layers} \nsoftmax_premature_layer: {softmax_premature_layers.shape}")
                     # 3. Calculate M, the average distribution
                     M = 0.5 * (softmax_mature_layer[None, :, :] + softmax_premature_layers)  # shape: (num_premature_layers, batch_size, num_features)
                     
