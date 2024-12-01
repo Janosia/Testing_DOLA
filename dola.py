@@ -252,7 +252,9 @@ class DoLa:
                 print(f"outputs:\n{outputs}\n outputs shape:{outputs['logits'].shape}\n")
                 
                 print(f"\n ENTERING JSD ITERATION\n")
-                for seq_i in range(prefix_ids.shape[-1] - 1, input_ids.shape[-1] - 1):
+                # (number of tokens in prompt, number of tokens in prompt + answer)
+                for seq_i in range(prefix_ids.shape[-1] - 1, input_ids.shape[-1] - 1): 
+                    print(f"\n seq_i:{seq_i}\n")
                     # Pick the less like layer to contrast with
                     # 1. Stacking all premature_layers into a new dimension
                     stacked_premature_layers = torch.stack([dict_outputs[i][:, seq_i, :] for i in candidate_premature_layers], dim=0)
@@ -272,8 +274,8 @@ class DoLa:
                     log_softmax_mature_layer = F.log_softmax(dict_outputs[mature_layer][:, seq_i, :], dim=-1)  # shape: (batch_size, num_features)
                     log_softmax_premature_layers = F.log_softmax(stacked_premature_layers, dim=-1)  # shape: (num_premature_layers, batch_size, num_features)
 
-                    print(f"\nlog_softmax_mature_layer:\n{log_softmax_mature_layer}\n")
-                    print(f"\nlog_softmax_premature_layers:\n{log_softmax_premature_layers}\n")
+                    print(f"\nlog_softmax_mature_layer:\n{log_softmax_mature_layer}\n log_softmax_mature_layer shape:{log_softmax_mature_layer.shape}\n")
+                    print(f"\nlog_softmax_premature_layers:\n{log_softmax_premature_layers}\nlog_softmax_premature_layers shape: {log_softmax_premature_layers.shape}\n")
                     # 5. Calculate the KL divergences and then the JS divergences
                     kl1 = F.kl_div(log_softmax_mature_layer[None, :, :], M, reduction='none').mean(-1)  # shape: (num_premature_layers, batch_size)
                     kl2 = F.kl_div(log_softmax_premature_layers, M, reduction='none').mean(-1)  # shape: (num_premature_layers, batch_size)
@@ -305,8 +307,8 @@ class DoLa:
                 final_logits = final_logits.log_softmax(dim=-1)
                 base_logits = base_logits.log_softmax(dim=-1)
                 diff_logits = final_logits - base_logits
-                print(f"\nbase_logits:\n{base_logits}\n")
-                print(f"\nfinal_logits:\n{final_logits}\n")
+                print(f"\nbase_logits:\n{base_logits}\n base logits shape: {base_logits.shape}")
+                print(f"\nfinal_logits:\n{final_logits}\n final_logits shape: {final_logits.shape}")
                 # logits = torch.stack([final_logits, base_logits], dim=0)
                 # diff_logits = torch.median(logits, dim=0).values
 
