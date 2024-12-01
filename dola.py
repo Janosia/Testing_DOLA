@@ -181,9 +181,9 @@ class DoLa:
             print(f"Input text 2:\n{input_text2}\n")
             print(f"Input text:\n{input_text}\n")
             
-            print(f"Input text ids:\n{input_ids}\n")
-            print(f"Input text1 ids or prefix_ids:\n{prefix_ids}\n")
-            print(f"Input text 2 ids or continue_ids\n{continue_ids}\n")
+            print(f"Input text ids:\n{input_ids}\n input text ids shape: {input_text.shape}\n")
+            print(f"Input text1 ids or prefix_ids:\n{prefix_ids}\nprefix ids shape: {prefix_ids.shape}\n")
+            print(f"Input text 2 ids or continue_ids\n{continue_ids}\ncontinue ids shape: {continue_ids.shape}\n")
 
             if mode == 'baseline':
                 outputs = self.model(input_ids)[0].squeeze(0)
