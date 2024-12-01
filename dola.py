@@ -176,6 +176,15 @@ class DoLa:
             input_ids = self.tokenizer(input_text, return_tensors="pt").input_ids.to(self.device)
             prefix_ids = self.tokenizer(input_text1, return_tensors="pt").input_ids.to(self.device)
             continue_ids = input_ids[0, prefix_ids.shape[-1]:]
+
+            print(f"Input text 1:\n{input_text1}\n")
+            print(f"Input text 2:\n{input_text2}\n")
+            print(f"Input text:\n{input_text}\n")
+            
+            print(f"Input text ids:\n{input_ids}\n")
+            print(f"Input text1 ids or prefix_ids:\n{prefix_ids}\n")
+            print(f"Input text 2 ids or continue_ids\n{continue_ids}\n")
+
             if mode == 'baseline':
                 outputs = self.model(input_ids)[0].squeeze(0)
                 outputs = outputs.log_softmax(-1)  # logits to log probs
@@ -216,14 +225,17 @@ class DoLa:
                 result_dict = {}
                 premature_layers = []
 
-                print("\nBBBBBBBBBBBBBBBBBBBBBBBBB")
-                print("\nCandidate premature layer:", candidate_premature_layers)
-                print(type(candidate_premature_layers))
-                print("\nmature layer:", mature_layer)
-                print(type(mature_layer))
+                # print("\nBBBBBBBBBBBBBBBBBBBBBBBBB")
+                # print("\nCandidate premature layer:", candidate_premature_layers)
+                print(f"\nCandidate premature layer:\n{candidate_premature_layers}\n premature layer type:\n{type(candidate_premature_layers)}\n")
+                # print(type(candidate_premature_layers))
+                print(f"\nmature layer:\n{mature_layer}\n mature layer type:{type(mature_layer)}\n")
+                # print("\nmature layer:", mature_layer)
+                # print(type(mature_layer))
                 early_exit_layers = candidate_premature_layers + [mature_layer]
-                print(early_exit_layers)
-                print(type(early_exit_layers))
+                print(f"\nearly exit layers:\n{early_exit_layers}\n early exit layer type:\n{type(early_exit_layers)}\n")
+                # print(early_exit_layers)
+                # print(type(early_exit_layers))
 
                 dict_outputs, outputs = self.model(
                     input_ids=input_ids,
@@ -233,26 +245,40 @@ class DoLa:
                     early_exit_layers=candidate_premature_layers + [mature_layer],
                 )
 
+                print(f"dict_outputs:\n{dict_outputs}\n dict_outputs shape:{dict_outputs.shape}\n")
+                print(f"outputs:\n{outputs}\n outputs shape:{outputs.shape}\n")
+                
+                print(f"\n ENTERING JSD ITERATION\n")
                 for seq_i in range(prefix_ids.shape[-1] - 1, input_ids.shape[-1] - 1):
                     # Pick the less like layer to contrast with
                     # 1. Stacking all premature_layers into a new dimension
                     stacked_premature_layers = torch.stack([dict_outputs[i][:, seq_i, :] for i in candidate_premature_layers], dim=0)
+                    print(f"\nstacked_premature_layers:\n{stacked_premature_layers}\n stacked_premature_layers shape: {stacked_premature_layers.shape}\n")
 
                     # 2. Calculate the softmax values for mature_layer and all premature_layers
                     softmax_mature_layer = F.softmax(dict_outputs[mature_layer][:, seq_i, :], dim=-1)  # shape: (batch_size, num_features)
                     softmax_premature_layers = F.softmax(stacked_premature_layers, dim=-1)  # shape: (num_premature_layers, batch_size, num_features)
 
+                    print(f"\nsoftmax_mature_layer: {softmax_mature_layer} \nsoftmax_mature_layer: {softmax_mature_layer.shape}")
+                    print(f"\nsoftmax_premature_layer: {softmax_premature_layer} \nsoftmax_premature_layer: {softmax_premature_layer.shape}")
                     # 3. Calculate M, the average distribution
                     M = 0.5 * (softmax_mature_layer[None, :, :] + softmax_premature_layers)  # shape: (num_premature_layers, batch_size, num_features)
-
+                    
+                    print(f"\nM:{M}\n")
                     # 4. Calculate log-softmax for the KL divergence
                     log_softmax_mature_layer = F.log_softmax(dict_outputs[mature_layer][:, seq_i, :], dim=-1)  # shape: (batch_size, num_features)
                     log_softmax_premature_layers = F.log_softmax(stacked_premature_layers, dim=-1)  # shape: (num_premature_layers, batch_size, num_features)
 
+                    print(f"\nlog_softmax_mature_layer:\n{log_softmax_mature_layer}\n")
+                    print(f"\nlog_softmax_premature_layer:\n{log_softmax_premature_layer}\n")
                     # 5. Calculate the KL divergences and then the JS divergences
                     kl1 = F.kl_div(log_softmax_mature_layer[None, :, :], M, reduction='none').mean(-1)  # shape: (num_premature_layers, batch_size)
                     kl2 = F.kl_div(log_softmax_premature_layers, M, reduction='none').mean(-1)  # shape: (num_premature_layers, batch_size)
                     js_divs = 0.5 * (kl1 + kl2)  # shape: (num_premature_layers, batch_size)
+
+                    print(f"\nkl1:\n{kl1}\n")
+                    print(f"\nkl2:\n{kl2}\n")
+                    print(f"\njs_divs:\n{js_divs}\n")
 
                     # 6. Reduce the batchmean
                     # js_divs = js_divs.mean(-1)  # shape: (num_premature_layers,)
@@ -260,21 +286,26 @@ class DoLa:
                     premature_layer = candidate_premature_layers[int(js_divs.argmax().cpu().item())]
                     premature_layer_dist[premature_layer] += 1
 
+                    print(f"\npremature_layer_dist:\n{premature_layer_dist}\n")
+
                     premature_layers.append(premature_layer)
                 
 
                 # visualise layer wise logit output
                 # self.visualize_layer_logits(input_text1, input_text2, candidate_premature_layers, dict_outputs, prefix_ids, mature_layer)
 
+                print(f"\npremature_layers:\n{premature_layers}\n")
                 base_logits = torch.zeros_like(dict_outputs[mature_layer][0, prefix_ids.shape[-1] - 1:-1])
                 for i, l in enumerate(premature_layers):
                    base_logits[i] = dict_outputs[l][0, prefix_ids.shape[-1] - 1 + i]
                 final_logits = dict_outputs[mature_layer][0, prefix_ids.shape[-1] - 1:-1]
                 final_logits = final_logits.log_softmax(dim=-1)
                 base_logits = base_logits.log_softmax(dim=-1)
-                # diff_logits = final_logits - base_logits
-                logits = torch.stack([final_logits, base_logits], dim=0)
-                diff_logits = torch.median(logits, dim=0).values
+                diff_logits = final_logits - base_logits
+                print(f"\nbase_logits:\n{base_logits}\n")
+                print(f"\nfinal_logits:\n{final_logits}\n")
+                # logits = torch.stack([final_logits, base_logits], dim=0)
+                # diff_logits = torch.median(logits, dim=0).values
 
                 if post_softmax:
                     diff_logits = diff_logits.log_softmax(dim=-1)
