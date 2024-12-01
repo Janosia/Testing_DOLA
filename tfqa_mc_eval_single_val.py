@@ -321,6 +321,7 @@ if __name__ == "__main__":
             if mode == "dola":
                 for k, v in c_dist.items():
                     premature_layer_dist[k] += v
+                    print(f"\npremature_layer_dist[{k}]={v}\n")
 
         for temp_ans in ref_false:
                 # append the current answer choice to the prompt
@@ -337,6 +338,7 @@ if __name__ == "__main__":
             if mode == "dola":
                 for k, v in c_dist.items():
                     premature_layer_dist[k] += v
+                    print(f"\npremature_layer_dist[{k}]={v}\n")
 
         scores = MC_calcs(scores_true, scores_false, ref_true, ref_best)
             # check nan in mc1/2/3

@@ -273,7 +273,7 @@ class DoLa:
                     log_softmax_premature_layers = F.log_softmax(stacked_premature_layers, dim=-1)  # shape: (num_premature_layers, batch_size, num_features)
 
                     print(f"\nlog_softmax_mature_layer:\n{log_softmax_mature_layer}\n")
-                    print(f"\nlog_softmax_premature_layer:\n{log_softmax_premature_layer}\n")
+                    print(f"\nlog_softmax_premature_layers:\n{log_softmax_premature_layers}\n")
                     # 5. Calculate the KL divergences and then the JS divergences
                     kl1 = F.kl_div(log_softmax_mature_layer[None, :, :], M, reduction='none').mean(-1)  # shape: (num_premature_layers, batch_size)
                     kl2 = F.kl_div(log_softmax_premature_layers, M, reduction='none').mean(-1)  # shape: (num_premature_layers, batch_size)
