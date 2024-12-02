@@ -36,38 +36,31 @@ class DoLa:
 
     @staticmethod
     def setup_logger(model_name):
-        """Setup logger for the DoLa class."""
+         """Set up a logger that writes to a timestamped file."""
+        # Directory to store logs
+        log_dir = os.path.join("logs", model_name)
+        os.makedirs(log_dir, exist_ok=True)  # Ensure the directory exists
+        
+        # Log file name with timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_filename = f"{model_name}_{timestamp}.log"
-        log_dir = "logs"
-        os.makedirs(log_dir, exist_ok=True)
-        log_filepath = os.path.join(log_dir, log_filename)
-
-        # Create and configure logger
+        log_filepath = os.path.join(log_dir, f"{model_name}_{timestamp}.log")
+        
+        # Configure logger
         logger = logging.getLogger(model_name)
         logger.setLevel(logging.DEBUG)
-
-        # File handler for logs
         file_handler = logging.FileHandler(log_filepath)
-        file_handler.setLevel(logging.DEBUG)
-
-        # Console handler for real-time output
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-
-        # Formatter for handlers
-        formatter = logging.Formatter(
-            '%(asctime)s - %(levelname)s - %(name)s - %(message)s'
-        )
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         file_handler.setFormatter(formatter)
-        console_handler.setFormatter(formatter)
-
-        # Add handlers to logger
         logger.addHandler(file_handler)
+        
+        # Optional: Also log to the console
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
-
+        
         return logger
-    def load_model(self, model_name):
+
+def load_model(self, model_name):
         if self.device == "cuda":
             kwargs = {"torch_dtype": torch.float16, "offload_folder": f"{model_name}/offload"}
             if self.num_gpus == "auto":
