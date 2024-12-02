@@ -60,7 +60,7 @@ class DoLa:
         
         return logger
 
-def load_model(self, model_name):
+    def load_model(self, model_name):
         if self.device == "cuda":
             kwargs = {"torch_dtype": torch.float16, "offload_folder": f"{model_name}/offload"}
             if self.num_gpus == "auto":
