@@ -18,6 +18,9 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import matplotlib.pyplot as plt
+import logging
+import os
+from datetime import datetime
 
 class DoLa:
     def __init__(self, model_name, device, num_gpus, max_gpu_memory=27):
@@ -26,10 +29,45 @@ class DoLa:
         self.num_gpus = num_gpus
         self.stopping_criteria = None
         self.max_gpu_memory = max_gpu_memory
-
+        self.logger = self.setup_logger(model_name)
+        
         self.model, self.tokenizer = self.load_model(model_name)
+    @staticmethod
+    def setup_logger(model_name):
+        """Setup logger for the DoLa class."""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_filename = f"{model_name}_{timestamp}.log"
+        log_dir = "logs"
+        os.makedirs(log_dir, exist_ok=True)
+        log_filepath = os.path.join(log_dir, log_filename)
 
+        # Create and configure logger
+        logger = logging.getLogger(model_name)
+        logger.setLevel(logging.DEBUG)
+
+        # File handler for logs
+        file_handler = logging.FileHandler(log_filepath)
+        file_handler.setLevel(logging.DEBUG)
+
+        # Console handler for real-time output
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+
+        # Formatter for handlers
+        formatter = logging.Formatter(
+            '%(asctime)s - %(levelname)s - %(name)s - %(message)s'
+        )
+        file_handler.setFormatter(formatter)
+        console_handler.setFormatter(formatter)
+
+        # Add handlers to logger
+        logger.addHandler(file_handler)
+        logger.addHandler(console_handler)
+
+        return logger
     def load_model(self, model_name):
+        self.logger.info("Loading model and tokenizer...")
+        
         if self.device == "cuda":
             kwargs = {"torch_dtype": torch.float16, "offload_folder": f"{model_name}/offload"}
             if self.num_gpus == "auto":
