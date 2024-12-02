@@ -38,6 +38,7 @@ class DoLa:
     def setup_logger(model_name):
          """Set up a logger that writes to a timestamped file."""
         # Directory to store logs
+        #INDENT
         log_dir = os.path.join("logs", model_name)
         os.makedirs(log_dir, exist_ok=True)  # Ensure the directory exists
         
