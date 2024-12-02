@@ -300,7 +300,24 @@ class DoLa:
                     print(f"\nsoftmax_premature_layer: {softmax_premature_layers} \nsoftmax_premature_layer: {softmax_premature_layers.shape}")
                     # 3. Calculate M, the average distribution
                     M = 0.5 * (softmax_mature_layer[None, :, :] + softmax_premature_layers)  # shape: (num_premature_layers, batch_size, num_features)
+                    # Iterate through each layer in the tensor M
+                    for i in range(M.shape[0]):  # num_layers
+                        current_tensor = M[i]  # Select the i-th tensor
+                        print(f"\nComparing layer {i} with tensors below it...")
                     
+                        # Compare with all layers below the current one
+                        for j in range(i + 1, M.shape[0]):
+                            comparison_tensor = M[j]  # Select the j-th tensor
+                    
+                            # Use XOR to check for inequality
+                            xor_result = (current_tensor != comparison_tensor)  # Element-wise comparison
+                            if torch.all(xor_result == 0):  # If all values are equal (no differences)
+                                print(f"Layer {i} is identical to Layer {j}.")
+                            else:
+                                print(f"Layer {i} is NOT identical to Layer {j}.")
+                                # Optionally, count differing elements or visualize differences
+                                print(f"Differences: {(xor_result).sum()} elements differ.")
+
                     print(f"\nM:{M}\n")
                     # 4. Calculate log-softmax for the KL divergence
                     log_softmax_mature_layer = F.log_softmax(dict_outputs[mature_layer][:, seq_i, :], dim=-1)  # shape: (batch_size, num_features)
