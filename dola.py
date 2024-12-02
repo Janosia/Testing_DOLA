@@ -11,7 +11,7 @@ import torch.nn.functional as F
 import torch_xla.core.xla_model as xm
 from transformers import AutoTokenizer, AutoModelForCausalLM, LlamaTokenizer
 from transformers.generation.stopping_criteria import StoppingCriteriaList, QaStoppingCriteria
-import logging
+# import logging
 import os
 from datetime import datetime
 
@@ -30,36 +30,36 @@ class DoLa:
         self.num_gpus = num_gpus
         self.stopping_criteria = None
         self.max_gpu_memory = max_gpu_memory
-        self.logger = self.setup_logger(model_name)
+        # self.logger = self.setup_logger(model_name)
        
         self.model, self.tokenizer = self.load_model(model_name)
 
-    @staticmethod
-    def setup_logger(model_name):
-         """Set up a logger that writes to a timestamped file."""
-        # Directory to store logs
-        #INDENT
-        log_dir = os.path.join("logs", model_name)
-        os.makedirs(log_dir, exist_ok=True)  # Ensure the directory exists
+    # @staticmethod
+    # def setup_logger(model_name):
+    #      """Set up a logger that writes to a timestamped file."""
+    #     # Directory to store logs
+    #     #INDENT
+    #     log_dir = os.path.join("logs", model_name)
+    #     os.makedirs(log_dir, exist_ok=True)  # Ensure the directory exists
         
-        # Log file name with timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_filepath = os.path.join(log_dir, f"{model_name}_{timestamp}.log")
+    #     # Log file name with timestamp
+    #     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    #     log_filepath = os.path.join(log_dir, f"{model_name}_{timestamp}.log")
         
-        # Configure logger
-        logger = logging.getLogger(model_name)
-        logger.setLevel(logging.DEBUG)
-        file_handler = logging.FileHandler(log_filepath)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+    #     # Configure logger
+    #     logger = logging.getLogger(model_name)
+    #     logger.setLevel(logging.DEBUG)
+    #     file_handler = logging.FileHandler(log_filepath)
+    #     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    #     file_handler.setFormatter(formatter)
+    #     logger.addHandler(file_handler)
         
-        # Optional: Also log to the console
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
+    #     # Optional: Also log to the console
+    #     console_handler = logging.StreamHandler()
+    #     console_handler.setFormatter(formatter)
+    #     logger.addHandler(console_handler)
         
-        return logger
+    #     return logger
 
     def load_model(self, model_name):
         if self.device == "cuda":
